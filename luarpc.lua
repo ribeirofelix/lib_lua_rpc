@@ -49,8 +49,8 @@ function rpcCall (ip, port, methodName, interface, args)
 	msg = msg .. table.concat (args, "\n") .. "\n"
 
 	print("Mensagem\n" .. msg .. "Fim mensagem\n")
---[[
-	--Send message
+
+	--[[Send message
 	local bytes, error = connection:send(msg)
 	--TO DO - what happens if there's an error?
 	if not bytes then
@@ -111,9 +111,10 @@ function createProxy (ip, port, interfaceFile)
 						print(k .. " not found")
 						return nil
 					else
-						return function (...)
-									return rpcCall(ip, port, k, proxy.interface, table.pack(...))
-								end
+						proxy[k] = 	function (...)
+										return rpcCall(ip, port, k, proxy.interface, table.pack(...))
+									end
+						return proxy[k]
 					end
 				end
 	setmetatable(proxy, mt)
