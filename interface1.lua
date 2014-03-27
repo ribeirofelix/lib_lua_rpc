@@ -16,6 +16,12 @@ interface { name = "minhaInt",
                  args = {{ direction = "inout",
                           type = "double"},
                         }
-               }
+               },
+                bar = {
+                 resulttype = "void",
+                 args = {{ direction = "in",
+                          type = "string"},
+                        }
+               },
              }
             }

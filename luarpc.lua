@@ -41,23 +41,82 @@ function SearchMethod (interfaceObj, methodName)
 	return nil
 end
 
+function VerifyArguments(methodName, interface, args)
+	interfaceArgs = interface.methods[methodName].args
+	local noArgs = 1
+	local missingArguments = false
+	local noInterfaceArgs = 0
+	for i, v in ipairs (interfaceArgs) do
+		if (v.direction=="in" or v.direction=="inout") then
+			if not (noArgs > #args) then
+				if not validateType(v.type, type(args[noArgs])) then
+					return false
+				end
+			end
+			noArgs = noArgs + 1
+			noInterfaceArgs = noInterfaceArgs + 1
+		end
+	end
+	args.null = noInterfaceArgs - #args
+	return true
+end
+
+function validateType( type1 , type2 )
+	if type1=="nil" or type2=="nil" then
+		return true
+	elseif type1=="double" and type2=="number" or type1=="number" and type2=="double" then
+		return true
+	elseif type1=="string" and type2=="char" or type1=="char" and type2=="string" then
+		return true
+	else
+		return type1==type2
+	end
+end
+
+function createMessage(methodName, t)
+	-- t is a table with arguments or results
+	local msg = ""
+	if methodName then
+		msg = msg .. methodName .. "\n"
+	end
+	for i, v in pairs (t) do
+		if not v then
+			msg = msg .. "nil\n"
+		elseif (type(v)=="string") then
+			msg = msg .. "\"" .. v .. "\"" .. "\n"
+		else
+			msg = msg .. v .. "\n"
+		end
+	end
+	return msg
+end
+
 function rpcCall (ip, port, methodName, interface, args)
+	-- Verify Arguments
+
+	local argsOk = (VerifyArguments(methodName,interface,args))
+	if not argsOk then
+		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos." )
+		return nil
+	end
+	print (args.null)
 	--Create connection
 	--local connection = assert(socket.connect(host, port))
 	--Serialize message
-	local msg = methodName .. "\n"
-	msg = msg .. table.concat (args, "\n") .. "\n"
-
+	local msg = createMessage(methodName,args)
+    
 	print("Mensagem\n" .. msg .. "Fim mensagem\n")
 
-	--[[Send message
-	local bytes, error = connection:send(msg)
+
+	--Send message
+	--local bytes, error = connection:send(msg)
+
 	--TO DO - what happens if there's an error?
 	if not bytes then
-		print ("Error: " .. error)
+		--print ("Error: " .. error)
 	end
 	--Receive message
-]]
+
 	--Unserialize answer
 	--Pack answer
 	--Close connection
