@@ -80,13 +80,20 @@ function createMessage(methodName, t)
 		msg = msg .. methodName .. "\n"
 	end
 	for i, v in pairs (t) do
-		if not v then
-			msg = msg .. "nil\n"
-		elseif (type(v)=="string") then
-			msg = msg .. "\"" .. v .. "\"" .. "\n"
-		else
-			msg = msg .. v .. "\n"
+		if i~="n" and i~="null" then
+			if not v then
+				msg = msg .. "nil\n"
+			elseif (type(v)=="string") then
+				msg = msg .. "\"" .. v .. "\"" .. "\n"
+			else
+				msg = msg .. v .. "\n"
+			end
 		end
+	end
+	local i = 0
+	while (i<t.null) do
+		msg = msg .. "nil\n"
+		i = i + 1
 	end
 	return msg
 end
@@ -99,7 +106,6 @@ function rpcCall (ip, port, methodName, interface, args)
 		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos." )
 		return nil
 	end
-	print (args.null)
 	--Create connection
 	--local connection = assert(socket.connect(host, port))
 	--Serialize message
