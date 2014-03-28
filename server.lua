@@ -26,3 +26,21 @@ serv1 = createServant (myobj1, "interface1.lua")
 -- (IP e porta) dos servidores
 print("Obj1 ip: " .. serv1.ip .. " port: " .. serv1.port)
 --print("Obj1 ip: " .. serv2.ip .. " port: " .. serv2.port)
+
+-- accept client
+while (true) do
+  local client = assert(serv1.server:accept())
+  local msg, e = client:receive()
+  if not e then
+    print (msg)
+  end
+  local method = serv1.object[msg]
+  if method then
+    print("Method " .. msg .. " declared")
+    local args = retrieveDataStrings(client, msg, serv1.interface, "in")
+    print("Arguments " .. table.concat(args, " "))
+  else
+    -- What to do?
+    print("Method not declared")
+  end
+end

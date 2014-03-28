@@ -2,6 +2,7 @@ local lastInterface = nil
 
 function ValidateInterface (interfaceObj)
 	local a = interfaceObj
+	
 	if type(a) ~= "table" or not a.methods or type(a.methods) ~= "table" then
 		return  nil
 	end
@@ -15,6 +16,9 @@ function ValidateInterface (interfaceObj)
 		if not v.args or type(v.args)~="table" then 
 			return nil
 		end
+
+		local noInArg, noOutArg, noInOutArg = 0, 0, 0
+
 		for i2, v2 in ipairs (v.args) do
 			if type(v2)~="table" or not v2.direction or type(v2.direction)~="string" or not v2.type or type(v2.type)~="string" then
 				return nil
@@ -23,9 +27,21 @@ function ValidateInterface (interfaceObj)
 			elseif v2.type~="double" and v2.type~="char" and v2.type~="string" then
 				return nil
 			end
+
+			if v2.direction == "in" then
+				noInArg = noInArg + 1
+			elseif v2.direction == "out" then
+				noOutArg = noOutArg + 1
+			else
+				noInOutArg = noInOutArg + 1
+			end
 		end
+
+		v.noInArg = noInArg
+		v.noOutArg = noOutArg
+		v.noInOutArg = noInOutArg
 	end
-	return interfaceObj
+	return a
 end
 
 function interface (a)
@@ -45,7 +61,6 @@ function VerifyArguments(methodName, interface, args)
 	interfaceArgs = interface.methods[methodName].args
 	local noArgs = 1
 	local missingArguments = false
-	local noInterfaceArgs = 0
 	for i, v in ipairs (interfaceArgs) do
 		if (v.direction=="in" or v.direction=="inout") then
 			if not (noArgs > #args) then
@@ -54,10 +69,19 @@ function VerifyArguments(methodName, interface, args)
 				end
 			end
 			noArgs = noArgs + 1
-			noInterfaceArgs = noInterfaceArgs + 1
 		end
 	end
-	args.null = noInterfaceArgs - #args
+
+	-- calculate missing arguments
+	local noInInterfArgs = interface.methods[methodName].noInArg + interface.methods[methodName].noInOutArg
+	args.null = noInInterfArgs - #args
+
+	-- delete extra arguments
+	local noExtraArg = - args.null
+	while (noExtraArg>0) do
+		args[noInInterfArgs+noExtraArg] = nil
+		noExtraArg = noExtraArg - 1
+	end
 	return true
 end
 
@@ -84,7 +108,7 @@ function createMessage(methodName, t)
 			if not v then
 				msg = msg .. "nil\n"
 			elseif (type(v)=="string") then
-				msg = msg .. "\"" .. v .. "\"" .. "\n"
+				msg = msg .. "\"" .. string.gsub(string.gsub(v, '\"', '\\\"'), '\n', '\\n') .. "\"\n"
 			else
 				msg = msg .. v .. "\n"
 			end
@@ -98,16 +122,22 @@ function createMessage(methodName, t)
 	return msg
 end
 
+function getReturnedValues(msg, interface)
+	-- body
+end
+
 function rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
-
-	local argsOk = (VerifyArguments(methodName,interface,args))
+	local argsOk = VerifyArguments(methodName,interface,args)
 	if not argsOk then
 		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos." )
 		return nil
 	end
+
 	--Create connection
-	--local connection = assert(socket.connect(host, port))
+	local socket = require("socket")
+	local connection = assert(socket.connect(ip, port))
+
 	--Serialize message
 	local msg = createMessage(methodName,args)
     
@@ -115,18 +145,60 @@ function rpcCall (ip, port, methodName, interface, args)
 
 
 	--Send message
-	--local bytes, error = connection:send(msg)
+	local bytes, error = connection:send(msg)
 
 	--TO DO - what happens if there's an error?
 	if not bytes then
-		--print ("Error: " .. error)
+		print ("Error: " .. error)
 	end
+
 	--Receive message
+	--local msg, error = connection:receive()
+
 
 	--Unserialize answer
 	--Pack answer
 	--Close connection
+	connection:close()
 	--Return
+end
+
+function retrieveDataStrings(connection, methodName, interfaceObj, inOut)
+	local noData = 0
+	if inOut == "in" then
+		noData = interfaceObj.methods[methodName].noInArg+interfaceObj.methods[methodName].noInOutArg
+	elseif inOut == "out" then
+		noData = interfaceObj.methods[methodName].noOutArg+interfaceObj.methods[methodName].noInOutArg
+	end
+	print(noData)
+	local i = 0
+	local dataString = {}
+    while (i<noData) do
+      local msg, e = connection:receive()
+      if not e then
+        table.insert(dataString, msg)
+      end
+      i = i + 1
+    end
+    return dataString
+end
+
+function retrieveArguments(argStrings, methodName, interfaceObj)
+	local args = {}
+	local noArgs = 1
+	for i, v in ipairs (interfaceObj.methods[methodName].args) do
+		if v.direction=="in" or v.direction=="inout" then
+			if argStrings[noArgs] ~= "nil" then
+				if v.type == "string" or v.type == "char" then
+					args[noArgs] = argStrings[noArgs]
+				elseif v.type == "double" then
+					args[noArgs] = tonumber(argStrings[noArgs])
+				end
+			end
+			noArgs = noArgs + 1
+		end
+	end
+	return args
 end
 
 function createServant (obj, interfaceFile)
@@ -145,9 +217,10 @@ function createServant (obj, interfaceFile)
 	servant.server = server
 	servant.ip = ip
 	servant.port = port
+	servant.object = obj
+	servant.interface = interfaceObj
 
 	return servant;
-	
 end
 
 function waitIncoming ()
