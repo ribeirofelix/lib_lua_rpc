@@ -48,7 +48,7 @@ function interface (a)
 	lastInterface = ValidateInterface(a)
 end
 
-function SearchMethod (interfaceObj, methodName)
+function searchMethod (interfaceObj, methodName)
 	for i, v in pairs (interfaceObj.methods) do
 		if i==methodName then 
 			return methodName
@@ -57,12 +57,19 @@ function SearchMethod (interfaceObj, methodName)
 	return nil
 end
 
-function VerifyArguments(methodName, interface, args)
+function verifyArguments(methodName, interface, args, direction)
 	interfaceArgs = interface.methods[methodName].args
 	local noArgs = 1
 	local missingArguments = false
+
+	if(direction == "out" and not validateType( interface.methods[methodName].resulttype , type(args[1]) ) ) then
+		return false
+	else
+		noArgs = noArgs + 1
+	end
+
 	for i, v in ipairs (interfaceArgs) do
-		if (v.direction=="in" or v.direction=="inout") then
+		if (v.direction==direction or v.direction=="inout") then
 			if not (noArgs > #args) then
 				if not validateType(v.type, type(args[noArgs])) then
 					return false
@@ -128,7 +135,7 @@ end
 
 function rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
-	local argsOk = VerifyArguments(methodName,interface,args)
+	local argsOk = verifyArguments(methodName,interface,args,"in")
 	if not argsOk then
 		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos." )
 		return nil
@@ -243,7 +250,7 @@ function createProxy (ip, port, interfaceFile)
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
-					local method = SearchMethod (proxy.interface, k)
+					local method = searchMethod (proxy.interface, k)
 					if not method then
 						-- TO DO: throw error
 						print(k .. " not found")
