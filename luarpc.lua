@@ -1,5 +1,6 @@
 local lastInterface = nil
 errorPrefix = "___ERRORPC: "
+createdServants = {}
 
 function ValidateInterface (interfaceObj)
 	local a = interfaceObj
@@ -58,7 +59,6 @@ function searchMethod (interfaceObj, methodName)
 	return nil
 end
 
---<<<<<<< HEAD
 function VerifyData(methodName, interface, data, inOut)
 	local inDir, outDir = false, false
 	if inOut=="in" then
@@ -93,25 +93,6 @@ function VerifyData(methodName, interface, data, inOut)
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
 			if not (noData > #data) then
 				if not validateType(v.type, type(data[noData])) then
-					--[[
-=======
-function verifyArguments(methodName, interface, args, direction)
-	interfaceArgs = interface.methods[methodName].args
-	local noArgs = 1
-	local missingArguments = false
-
-	if(direction == "out" and not validateType( interface.methods[methodName].resulttype , type(args[1]) ) ) then
-		return false
-	else
-		noArgs = noArgs + 1
-	end
-
-	for i, v in ipairs (interfaceArgs) do
-		if (v.direction==direction or v.direction=="inout") then
-			if not (noArgs > #args) then
-				if not validateType(v.type, type(args[noArgs])) then
->>>>>>> 678cbc480508e7156c0d3d28b47e256c6c8f1460
-]]
 					return false
 				end
 			end
@@ -210,31 +191,8 @@ function rpcCall (ip, port, methodName, interface, args)
 		else
 			--Receive message
 			local resultsStrings = retrieveDataStrings(connection, methodName, interface, "out")
---[[
-print "Mensagem de retorno"
-			for i,v in pairs (resultsStrings) do
-				if i~="n" and i~="null" then
-			        print(v, type(v))
-		        end
-		    end
-print "Fim mensagem de retorno"
-]]
 			if resultsStrings then
 				results = retrieveData(resultsStrings, methodName, interface, "out") 
---[[
-				for i,v in pairs (results) do
-			        if i~="n" and i~="null" then
-			        	print(v, type(v))
-		        	end
-		      	end
-		    	local i = 0
-		    	if (results.null) then
-			    	while (i<results.null) do
-			        	print (nil, nil)
-			        	i = i + 1
-			    	end
-			    end
-]]
 			else
 
 			end
@@ -342,10 +300,84 @@ function createServant (obj, interfaceFile)
 	servant.object = obj
 	servant.interface = interfaceObj
 
+	table.insert(createdServants, servant)
 	return servant;
 end
 
+function searchServant (ip, port)
+  for _, v in ipairs(createdServants) do
+    if (v.ip==ip and v.port==port) then
+      return v
+    end
+  end
+end
+
+function newset()
+    local reverse = {}
+    local set = {}
+    return setmetatable(set, {__index = {
+        insert = function(set, value)
+            if not reverse[value] then
+                table.insert(set, value)
+                reverse[value] = #set
+            end
+        end,
+        remove = function(set, value)
+            local index = reverse[value]
+            if index then
+                reverse[value] = nil
+                local top = table.remove(set)
+                if top ~= value then
+                    reverse[top] = index
+                    set[index] = top
+                end
+            end
+        end
+    }})
+end
+
 function waitIncoming ()
+	local set = newset()
+	set:insert(serv1.server)
+	set:insert(serv2.server)
+	local socket = require "socket"
+	while (true) do
+	  local socketsToRead = socket.select(set, nil)
+	  for i, v in ipairs (socketsToRead) do
+	    local ip, port = v:getsockname()
+	    local servant = searchServant (ip, port)
+	    local client = assert(servant.server:accept())
+	    print ("Cliente conectado " .. ip .. ":" .. port) 
+	    local msg, errorRec = client:receive()
+	    if not errorRec then
+	      local answer = ""
+	      local method = servant.object[msg]
+	      if method then
+	        print("Method " .. msg .. " declared")
+	        local argsStrings = retrieveDataStrings(client, msg, servant.interface, "in")
+	        print("Arguments " .. table.concat(argsStrings, " "))
+	        local args = retrieveData(argsStrings, msg, servant.interface, "in")
+	        results = table.pack(pcall(method, table.unpack(args)))
+	        resultsOk = VerifyData(msg, servant.interface, results, "out")
+	        if resultsOk then
+	          answer = createMessage(nil, results)
+	          print (results[1], results[2], results[3])
+	        else
+	          answer = errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
+	        end
+	      else
+	        answer = errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
+	      end
+	      print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
+	      local bytes, errorSend = client:send(answer)
+	      if not bytes then
+	        -- couldn't send answer: what to do?
+	        print "Couldn't send answer"
+	      end
+	      print "--------"
+	      end
+	  	end
+	end
 end
 
 function createProxy (ip, port, interfaceFile)
