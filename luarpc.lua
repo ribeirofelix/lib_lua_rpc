@@ -151,6 +151,29 @@ function validateType( type1 , type2 )
 	end
 end
 
+function createStringMessage(str, errorString)
+	local strMsg = string.gsub(str, '\\', '\\\\')
+	strMsg = string.gsub(strMsg, '\"', '\\\"')
+	strMsg = string.gsub(strMsg, '\n', '\\n')
+	if not errorString then
+		strMsg = '\"' .. strMsg .. '\"'
+	end
+	return strMsg .. "\n"
+end
+
+function retrieveString(strMsg, errorString)
+	local str = ""
+	if not errorString then
+		str = string.sub(strMsg, 2, -2)
+	else
+		str = strMsg
+	end
+	str = string.gsub(str, '\\\\', '\\')
+	str = string.gsub(str, '\\\"', '\"')
+	str = string.gsub(str, '\\n', '\n')
+	return str
+end
+
 -- Creates a message assuming there are no extra or missing arguments/returns
 function createMessage(methodName, t)
 	-- t is a table with arguments or results
@@ -160,13 +183,13 @@ function createMessage(methodName, t)
 	end
 	if t[1]==false then
 		local errorString = errorPrefix .. t[2]
-		msg = string.gsub(string.gsub(errorString, '\"', '\\\"'), '\n', '\\n') .. "\n"
+		msg = createStringMessage(errorString, true)
 		return msg
 	end
 	for i, v in pairs (t) do
 		if i~="n" and i~="null" then
 			if (type(v)=="string") then
-				msg = msg .. "\"" .. string.gsub(string.gsub(v, '\"', '\\\"'), '\n', '\\n') .. "\"\n"
+				msg = msg .. createStringMessage(v, false)
 			elseif type(v)=="number" then
 				msg = msg .. v .. "\n"
 			elseif type(v)=="nil" then
@@ -273,12 +296,12 @@ function retrieveData(dataStrings, methodName, interfaceObj, inOut)
 	if outDir then
 		local byte = string.find(dataStrings[1], errorPrefix, 1)
         if byte and byte==1 then
-        	print(dataStrings[1])
+        	print(retrieveString(dataStrings[1], true))
         	return data
         end
 		local restype = interfaceObj.methods[methodName].resulttype
 		if restype == "string" or restype == "char" then
-			data[noData] = string.sub(string.gsub(string.gsub(dataStrings[noData], '\\n', '\n'), '\\\"', '\"'), 2, -2)
+			data[noData] = retrieveString(dataStrings[noData], false)
 		elseif restype == "double" then
 			data[noData] = tonumber(dataStrings[noData])
 		end
@@ -289,7 +312,7 @@ function retrieveData(dataStrings, methodName, interfaceObj, inOut)
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
 			if dataStrings[noData] ~= "nil" then
 				if v.type == "string" or v.type == "char" then
-					data[noData] = string.sub(string.gsub(string.gsub(dataStrings[noData], '\\n', '\n'), '\\\"', '\"'), 2, -2)
+					data[noData] = retrieveString(dataStrings[noData], false)
 				elseif v.type == "double" then
 					data[noData] = tonumber(dataStrings[noData])
 				end

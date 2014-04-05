@@ -1,6 +1,6 @@
 dofile "luarpc.lua"
-p1 = createProxy("0.0.0.0", 49428, "interface1.lua")
-p2 = createProxy("0.0.0.0", 49429, "interface1.lua")
+p1 = createProxy("0.0.0.0", 50340, "interface1.lua")
+p2 = createProxy("0.0.0.0", 50341, "interface1.lua")
 print(p1.foo(3, 5))
 print(p1.foo(3))
 print(p1.foo())
