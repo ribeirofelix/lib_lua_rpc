@@ -1,4 +1,5 @@
 local lastInterface = nil
+errorPrefix = "___ERRORPC: "
 
 function ValidateInterface (interfaceObj)
 	local a = interfaceObj
@@ -57,29 +58,71 @@ function SearchMethod (interfaceObj, methodName)
 	return nil
 end
 
-function VerifyArguments(methodName, interface, args)
+function VerifyData(methodName, interface, data, inOut)
+	local inDir, outDir = false, false
+	if inOut=="in" then
+		inDir = true
+	elseif inOut=="out" then
+		outDir = true
+	else
+		return nil
+	end
+
 	interfaceArgs = interface.methods[methodName].args
-	local noArgs = 1
-	local missingArguments = false
+	local noData = 1
+
+	if outDir then
+		--print "marco1"
+		if type(data[noData])~="boolean" then
+		--	print "marco2"
+			return false
+		end
+		if not data[noData] then
+		--	print "marco3"
+			if type(data[noData+1])~="string" or data.n~=2 then
+		--		print "marco4"
+				return false
+			else
+		--		print "marco5"
+				return true
+			end
+		end
+		--print "marco6"
+		noData = noData + 1
+		if not validateType(interface.methods[methodName].resulttype, type(data[noData])) then
+		--	print "marco7"
+			return false
+		end
+		noData = noData + 1
+	end
+	--print "marco8"
 	for i, v in ipairs (interfaceArgs) do
-		if (v.direction=="in" or v.direction=="inout") then
-			if not (noArgs > #args) then
-				if not validateType(v.type, type(args[noArgs])) then
+		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
+			--print (i, v.direction, v.type)
+			if not (noData > #data) then
+				if not validateType(v.type, type(data[noData])) then
 					return false
 				end
 			end
-			noArgs = noArgs + 1
+			noData = noData + 1
 		end
 	end
 
 	-- calculate missing arguments
-	local noInInterfArgs = interface.methods[methodName].noInArg + interface.methods[methodName].noInOutArg
-	args.null = noInInterfArgs - #args
+	local noDataArgs = interface.methods[methodName].noInOutArg
+	if inDir then
+		noDataArgs = noDataArgs + interface.methods[methodName].noInArg 
+	else
+		noDataArgs = noDataArgs + interface.methods[methodName].noOutArg + 2
+	end
+
+	data.null = noDataArgs - #data
 
 	-- delete extra arguments
-	local noExtraArg = - args.null
+	local noExtraArg = - data.null
+
 	while (noExtraArg>0) do
-		args[noInInterfArgs+noExtraArg] = nil
+		data[noDataArgs+noExtraArg] = nil
 		noExtraArg = noExtraArg - 1
 	end
 	return true
@@ -103,64 +146,94 @@ function createMessage(methodName, t)
 	if methodName then
 		msg = msg .. methodName .. "\n"
 	end
+	if t[1]==false then
+		local errorString = errorPrefix .. t[2]
+		msg = string.gsub(string.gsub(errorString, '\"', '\\\"'), '\n', '\\n') .. "\n"
+		return msg
+	end
 	for i, v in pairs (t) do
 		if i~="n" and i~="null" then
-			if not v then
-				msg = msg .. "nil\n"
-			elseif (type(v)=="string") then
+			--print(v, type(v))
+			if (type(v)=="string") then
 				msg = msg .. "\"" .. string.gsub(string.gsub(v, '\"', '\\\"'), '\n', '\\n') .. "\"\n"
-			else
+			elseif type(v)=="number" then
 				msg = msg .. v .. "\n"
+			elseif type(v)=="nil" then
+				msg = msg .. "nil\n"
 			end
+			--print(msg)
 		end
 	end
 	local i = 0
-	while (i<t.null) do
-		msg = msg .. "nil\n"
-		i = i + 1
+	if (t.null) then
+		while (i<t.null) do
+			msg = msg .. "nil\n"
+			i = i + 1
+		end
 	end
 	return msg
 end
 
-function getReturnedValues(msg, interface)
-	-- body
-end
-
 function rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
-	local argsOk = VerifyArguments(methodName,interface,args)
+	local argsOk = VerifyData(methodName, interface, args, "in")
 	if not argsOk then
-		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos." )
+		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
 		return nil
 	end
-
+	local results = {}
 	--Create connection
 	local socket = require("socket")
 	local connection = assert(socket.connect(ip, port))
 
-	--Serialize message
-	local msg = createMessage(methodName,args)
-    
-	print("Mensagem\n" .. msg .. "Fim mensagem\n")
+	if connection then
+		--Serialize message
+		local msg = createMessage(methodName,args)
+		--print("Mensagem\n" .. msg .. "Fim mensagem\n")
 
+		--Send message
+		local bytes, error = connection:send(msg)
+		--TO DO - what happens if there's an error?
+		if not bytes then
+			print ("Error: " .. error)
+		else
+			--Receive message
+			local resultsStrings = retrieveDataStrings(connection, methodName, interface, "out")
+--[[
+print "Mensagem de retorno"
+			for i,v in pairs (resultsStrings) do
+				if i~="n" and i~="null" then
+			        print(v, type(v))
+		        end
+		    end
+print "Fim mensagem de retorno"
+]]
+			if resultsStrings then
+				results = retrieveData(resultsStrings, methodName, interface, "out") 
+--[[
+				for i,v in pairs (results) do
+			        if i~="n" and i~="null" then
+			        	print(v, type(v))
+		        	end
+		      	end
+		    	local i = 0
+		    	if (results.null) then
+			    	while (i<results.null) do
+			        	print (nil, nil)
+			        	i = i + 1
+			    	end
+			    end
+]]
+			else
 
-	--Send message
-	local bytes, error = connection:send(msg)
-
-	--TO DO - what happens if there's an error?
-	if not bytes then
-		print ("Error: " .. error)
+			end
+		end
+		--Close connection
+		connection:close()
+	else
+		--Couldn't connect, what to do?
 	end
-
-	--Receive message
-	--local msg, error = connection:receive()
-
-
-	--Unserialize answer
-	--Pack answer
-	--Close connection
-	connection:close()
-	--Return
+	return table.unpack(results)
 end
 
 function retrieveDataStrings(connection, methodName, interfaceObj, inOut)
@@ -168,37 +241,75 @@ function retrieveDataStrings(connection, methodName, interfaceObj, inOut)
 	if inOut == "in" then
 		noData = interfaceObj.methods[methodName].noInArg+interfaceObj.methods[methodName].noInOutArg
 	elseif inOut == "out" then
-		noData = interfaceObj.methods[methodName].noOutArg+interfaceObj.methods[methodName].noInOutArg
+		noData = interfaceObj.methods[methodName].noOutArg+interfaceObj.methods[methodName].noInOutArg + 1
+	else
+		return nil
 	end
-	print(noData)
+
 	local i = 0
 	local dataString = {}
     while (i<noData) do
       local msg, e = connection:receive()
       if not e then
         table.insert(dataString, msg)
+        local byte = string.find(msg, errorPrefix, 1)
+        if byte and byte==1 then
+        	break
+        end
+      else
+      	print "Could not receive message"
+      	return nil
       end
       i = i + 1
     end
     return dataString
 end
 
-function retrieveArguments(argStrings, methodName, interfaceObj)
-	local args = {}
-	local noArgs = 1
+function retrieveData(dataStrings, methodName, interfaceObj, inOut)
+	local inDir = false
+	local outDir = false
+	if inOut == "in" then
+		inDir = true
+	elseif inOut == "out" then
+		outDir = true
+	else
+		return nil
+	end
+
+	local data = {}
+	local noData = 1
+
+	if outDir then
+		local byte = string.find(dataStrings[1], errorPrefix, 1)
+        if byte and byte==1 then
+        	print(dataStrings[1])
+        	return data
+        end
+		local restype = interfaceObj.methods[methodName].resulttype
+		if restype == "string" or restype == "char" then
+			data[noData] = string.sub(string.gsub(string.gsub(dataStrings[noData], '\\n', '\n'), '\\\"', '\"'), 2, -2)
+		elseif restype == "double" then
+			data[noData] = tonumber(dataStrings[noData])
+		end
+		noData = noData + 1
+	end
+
 	for i, v in ipairs (interfaceObj.methods[methodName].args) do
-		if v.direction=="in" or v.direction=="inout" then
-			if argStrings[noArgs] ~= "nil" then
+		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
+			if dataStrings[noData] ~= "nil" then
 				if v.type == "string" or v.type == "char" then
-					args[noArgs] = argStrings[noArgs]
+					data[noData] = string.sub(string.gsub(string.gsub(dataStrings[noData], '\\n', '\n'), '\\\"', '\"'), 2, -2)
 				elseif v.type == "double" then
-					args[noArgs] = tonumber(argStrings[noArgs])
+					data[noData] = tonumber(dataStrings[noData])
 				end
 			end
-			noArgs = noArgs + 1
+			noData = noData + 1
 		end
 	end
-	return args
+
+	-- missing data
+	data.null = noData - 1 - #data
+	return data
 end
 
 function createServant (obj, interfaceFile)
@@ -210,7 +321,7 @@ function createServant (obj, interfaceFile)
 	end
 
 	local socket = require("socket")
-	local server = assert(socket.bind("localhost", 8080))
+	local server = assert(socket.bind("*", 0))
 	local ip, port = server:getsockname()
 
 	local servant = {}
@@ -246,8 +357,9 @@ function createProxy (ip, port, interfaceFile)
 					local method = SearchMethod (proxy.interface, k)
 					if not method then
 						-- TO DO: throw error
-						print(k .. " not found")
-						return nil
+						return function (...)
+							print(errorPrefix .. "Method \"" .. k .. "\" not found")
+						end
 					else
 						proxy[k] = 	function (...)
 										return rpcCall(ip, port, k, proxy.interface, table.pack(...))
