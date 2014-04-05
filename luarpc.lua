@@ -49,7 +49,7 @@ function interface (a)
 	lastInterface = ValidateInterface(a)
 end
 
-function SearchMethod (interfaceObj, methodName)
+function searchMethod (interfaceObj, methodName)
 	for i, v in pairs (interfaceObj.methods) do
 		if i==methodName then 
 			return methodName
@@ -58,6 +58,7 @@ function SearchMethod (interfaceObj, methodName)
 	return nil
 end
 
+--<<<<<<< HEAD
 function VerifyData(methodName, interface, data, inOut)
 	local inDir, outDir = false, false
 	if inOut=="in" then
@@ -72,35 +73,45 @@ function VerifyData(methodName, interface, data, inOut)
 	local noData = 1
 
 	if outDir then
-		--print "marco1"
 		if type(data[noData])~="boolean" then
-		--	print "marco2"
 			return false
 		end
 		if not data[noData] then
-		--	print "marco3"
 			if type(data[noData+1])~="string" or data.n~=2 then
-		--		print "marco4"
 				return false
 			else
-		--		print "marco5"
 				return true
 			end
 		end
-		--print "marco6"
 		noData = noData + 1
 		if not validateType(interface.methods[methodName].resulttype, type(data[noData])) then
-		--	print "marco7"
 			return false
 		end
 		noData = noData + 1
 	end
-	--print "marco8"
 	for i, v in ipairs (interfaceArgs) do
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
-			--print (i, v.direction, v.type)
 			if not (noData > #data) then
 				if not validateType(v.type, type(data[noData])) then
+					--[[
+=======
+function verifyArguments(methodName, interface, args, direction)
+	interfaceArgs = interface.methods[methodName].args
+	local noArgs = 1
+	local missingArguments = false
+
+	if(direction == "out" and not validateType( interface.methods[methodName].resulttype , type(args[1]) ) ) then
+		return false
+	else
+		noArgs = noArgs + 1
+	end
+
+	for i, v in ipairs (interfaceArgs) do
+		if (v.direction==direction or v.direction=="inout") then
+			if not (noArgs > #args) then
+				if not validateType(v.type, type(args[noArgs])) then
+>>>>>>> 678cbc480508e7156c0d3d28b47e256c6c8f1460
+]]
 					return false
 				end
 			end
@@ -354,7 +365,7 @@ function createProxy (ip, port, interfaceFile)
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
-					local method = SearchMethod (proxy.interface, k)
+					local method = searchMethod (proxy.interface, k)
 					if not method then
 						-- TO DO: throw error
 						return function (...)
