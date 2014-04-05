@@ -2,6 +2,7 @@ local lastInterface = nil
 errorPrefix = "___ERRORPC: "
 createdServants = {}
 
+-- Validates a table as an acceptable interface for this library, returns interface if it's ok or nil otherwise
 function ValidateInterface (interfaceObj)
 	local a = interfaceObj
 	
@@ -46,10 +47,12 @@ function ValidateInterface (interfaceObj)
 	return a
 end
 
+-- Keeps a reference to the last validated interface (or nil)
 function interface (a)
 	lastInterface = ValidateInterface(a)
 end
 
+-- Searches a method by its name in an interface, returns the method name if it exists or nil otherwise
 function searchMethod (interfaceObj, methodName)
 	for i, v in pairs (interfaceObj.methods) do
 		if i==methodName then 
@@ -59,11 +62,19 @@ function searchMethod (interfaceObj, methodName)
 	return nil
 end
 
-function VerifyData(methodName, interface, data, inOut)
+-- Verifies data types, return true if data is consistent or false otherwise
+-- methodName: name of the method
+-- interface: interface object
+-- data: table of data to be verified
+-- direction: "in" if data are arguments or "out" if data are returns
+-- Note: it also calculates missing arguments/returns
+-- Note (2): it also delete extra arguments/returns from data
+function VerifyData(methodName, interface, data, direction)
+	-- checks whether direction is correctly given
 	local inDir, outDir = false, false
-	if inOut=="in" then
+	if direction=="in" then
 		inDir = true
-	elseif inOut=="out" then
+	elseif direction=="out" then
 		outDir = true
 	else
 		return nil
@@ -73,6 +84,7 @@ function VerifyData(methodName, interface, data, inOut)
 	local noData = 1
 
 	if outDir then
+		-- check if there wasn't an execution error
 		if type(data[noData])~="boolean" then
 			return false
 		end
@@ -83,12 +95,17 @@ function VerifyData(methodName, interface, data, inOut)
 				return true
 			end
 		end
+
+		-- there was no error, first result should match the resulttype in interface
 		noData = noData + 1
 		if not validateType(interface.methods[methodName].resulttype, type(data[noData])) then
 			return false
 		end
 		noData = noData + 1
 	end
+
+	-- if data are arguments, verify all arguments "in" and "inout"
+	-- if data are returns, verify all remaining returns
 	for i, v in ipairs (interfaceArgs) do
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
 			if not (noData > #data) then
@@ -120,6 +137,8 @@ function VerifyData(methodName, interface, data, inOut)
 	return true
 end
 
+-- Validates types, return true if type1 is equivalent to type2
+-- Ex: in Lua, type of 5 is "number", but in the interface of this library, it's "double"
 function validateType( type1 , type2 )
 	if type1=="nil" or type2=="nil" then
 		return true
@@ -132,6 +151,7 @@ function validateType( type1 , type2 )
 	end
 end
 
+-- Creates a message assuming there are no extra or missing arguments/returns
 function createMessage(methodName, t)
 	-- t is a table with arguments or results
 	local msg = ""
@@ -145,7 +165,6 @@ function createMessage(methodName, t)
 	end
 	for i, v in pairs (t) do
 		if i~="n" and i~="null" then
-			--print(v, type(v))
 			if (type(v)=="string") then
 				msg = msg .. "\"" .. string.gsub(string.gsub(v, '\"', '\\\"'), '\n', '\\n') .. "\"\n"
 			elseif type(v)=="number" then
@@ -153,7 +172,6 @@ function createMessage(methodName, t)
 			elseif type(v)=="nil" then
 				msg = msg .. "nil\n"
 			end
-			--print(msg)
 		end
 	end
 	local i = 0
@@ -166,6 +184,7 @@ function createMessage(methodName, t)
 	return msg
 end
 
+-- Actually makes rpc call
 function rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
 	local argsOk = VerifyData(methodName, interface, args, "in")
@@ -205,11 +224,13 @@ function rpcCall (ip, port, methodName, interface, args)
 	return table.unpack(results)
 end
 
-function retrieveDataStrings(connection, methodName, interfaceObj, inOut)
+-- Receives a certain number of messages from connection, according to direction
+-- direction is "in" if arguments are expected, direction is "out" if returns are expected
+function retrieveDataStrings(connection, methodName, interfaceObj, direction)
 	local noData = 0
-	if inOut == "in" then
+	if direction == "in" then
 		noData = interfaceObj.methods[methodName].noInArg+interfaceObj.methods[methodName].noInOutArg
-	elseif inOut == "out" then
+	elseif direction == "out" then
 		noData = interfaceObj.methods[methodName].noOutArg+interfaceObj.methods[methodName].noInOutArg + 1
 	else
 		return nil
@@ -234,6 +255,7 @@ function retrieveDataStrings(connection, methodName, interfaceObj, inOut)
     return dataString
 end
 
+-- Convert strings received by retrieveDataStrings to types expected by interface
 function retrieveData(dataStrings, methodName, interfaceObj, inOut)
 	local inDir = false
 	local outDir = false
@@ -281,29 +303,8 @@ function retrieveData(dataStrings, methodName, interfaceObj, inOut)
 	return data
 end
 
-function createServant (obj, interfaceFile)
-	dofile(interfaceFile)
-	local interfaceObj = lastInterface
-	if not interfaceObj then
-		-- TO DO: throw error
-		return nil;
-	end
-
-	local socket = require("socket")
-	local server = assert(socket.bind("*", 0))
-	local ip, port = server:getsockname()
-
-	local servant = {}
-	servant.server = server
-	servant.ip = ip
-	servant.port = port
-	servant.object = obj
-	servant.interface = interfaceObj
-
-	table.insert(createdServants, servant)
-	return servant;
-end
-
+-- Searches a servant by its ip and port in createdServants
+-- Used so that server is able to identify which servant should handle the request
 function searchServant (ip, port)
   for _, v in ipairs(createdServants) do
     if (v.ip==ip and v.port==port) then
@@ -312,6 +313,7 @@ function searchServant (ip, port)
   end
 end
 
+-- Creates a table that can be used in socket.select
 function newset()
     local reverse = {}
     local set = {}
@@ -334,6 +336,63 @@ function newset()
             end
         end
     }})
+end
+
+function createServant (obj, interfaceFile)
+	dofile(interfaceFile)
+	local interfaceObj = lastInterface
+	if not interfaceObj then
+		-- TO DO: throw error
+		return nil
+	end
+
+	local socket = require("socket")
+	local server = assert(socket.bind("*", 0))
+	local ip, port = server:getsockname()
+
+	local servant = {}
+	servant.server = server
+	servant.ip = ip
+	servant.port = port
+	servant.object = obj
+	servant.interface = interfaceObj
+
+	table.insert(createdServants, servant)
+	return servant
+end
+
+function createProxy (ip, port, interfaceFile)
+	dofile(interfaceFile)
+	local interfaceObj = lastInterface
+	if not interfaceObj then 
+		-- TO DO: throw error
+		print "Interface inválida!"
+		return nil 
+	end
+
+	local proxy = {}
+	proxy.interface = interfaceObj
+	proxy.port = port
+	proxy.ip = ip
+
+	--metatable
+	local mt = {}
+	mt.__index = function (t, k)
+					local method = searchMethod (proxy.interface, k)
+					if not method then
+						proxy[k] =  function (...)
+										print(errorPrefix .. "Method \"" .. k .. "\" not found")
+									end
+						return proxy[k]
+					else
+						proxy[k] = 	function (...)
+										return rpcCall(ip, port, k, proxy.interface, table.pack(...))
+									end
+						return proxy[k]
+					end
+				end
+	setmetatable(proxy, mt)
+	return proxy
 end
 
 function waitIncoming ()
@@ -378,38 +437,4 @@ function waitIncoming ()
 	      end
 	  	end
 	end
-end
-
-function createProxy (ip, port, interfaceFile)
-	dofile(interfaceFile)
-	local interfaceObj = lastInterface
-	if not interfaceObj then 
-		-- TO DO: throw error
-		print "Interface inválida!"
-		return nil 
-	end
-
-	local proxy = {}
-	proxy.interface = interfaceObj
-	proxy.port = port
-	proxy.ip = ip
-
-	--metatable
-	local mt = {}
-	mt.__index = function (t, k)
-					local method = searchMethod (proxy.interface, k)
-					if not method then
-						-- TO DO: throw error
-						return function (...)
-							print(errorPrefix .. "Method \"" .. k .. "\" not found")
-						end
-					else
-						proxy[k] = 	function (...)
-										return rpcCall(ip, port, k, proxy.interface, table.pack(...))
-									end
-						return proxy[k]
-					end
-				end
-	setmetatable(proxy, mt)
-	return proxy
 end
