@@ -212,7 +212,7 @@ function rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
 	local argsOk = VerifyData(methodName, interface, args, "in")
 	if not argsOk then
-		print ( "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
+		print ( errorPrefix .. "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
 		return nil
 	end
 	local results = {}
@@ -388,8 +388,7 @@ function createProxy (ip, port, interfaceFile)
 	dofile(interfaceFile)
 	local interfaceObj = lastInterface
 	if not interfaceObj then 
-		-- TO DO: throw error
-		print "Interface inválida!"
+		print ( errorPrefix .. "Interface \"".. interfaceFile .. "\" inválida!")
 		return nil 
 	end
 
@@ -420,8 +419,10 @@ end
 
 function waitIncoming ()
 	local set = newset()
-	set:insert(serv1.server)
-	set:insert(serv2.server)
+	for _, v in ipairs (createdServants) do
+		set:insert(v.server)
+	end
+
 	local socket = require "socket"
 	while (true) do
 	  local socketsToRead = socket.select(set, nil)
@@ -443,7 +444,6 @@ function waitIncoming ()
 	        resultsOk = VerifyData(msg, servant.interface, results, "out")
 	        if resultsOk then
 	          answer = createMessage(nil, results)
-	          print (results[1], results[2], results[3])
 	        else
 	          answer = errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
 	        end
