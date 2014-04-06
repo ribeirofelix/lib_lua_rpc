@@ -401,7 +401,7 @@ function waitIncoming ()
 	set:insert(serv2.server)
 	local socket = require "socket"
 	while (true) do
-		
+	 
 	  local socketsToRead = socket.select(set, nil)
 	  for i, v in ipairs (socketsToRead) do
 	    local ip, port = v:getsockname()

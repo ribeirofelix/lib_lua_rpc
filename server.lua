@@ -1,14 +1,27 @@
 dofile "luarpc.lua"
 
 function publishContact( serv , interface)
-      local file = io.open("deploy", "a+" )
+      local text = io.open("deploy", "r" ):read("*a")
+      local result = "" 
       
-      if file then
-        -- write the interface name
-        file:write(interface .. "\n")
-        file:write(serv1.ip .. " " .. serv2.port .. "\n")
+      print(text)
+      if text ~= "" then
 
-      end 
+        for line in string.gmatch(text,'[^\r\n]+') do
+          print(line)
+          if(line == interface) then -- there's ip/port deployed to this interface
+            result = result  .. interface .. "\n" ..  serv.ip .. " " .. serv.port .. "\n"
+          else
+            result = result  .. line .. "\n"
+          end
+        end
+
+      else 
+        result =   interface .. "\n" .. serv.ip .. " " .. serv.port .. "\n"
+      end
+
+      file = io.open("deploy","w")
+      file:write(result)
       file:close()
       print[[closed]]
 end
