@@ -1,6 +1,32 @@
 dofile "luarpc.lua"
-p1 = createProxy("0.0.0.0", 49428, "interface1.lua")
-p2 = createProxy("0.0.0.0", 49429, "interface1.lua")
+dofile "server.lua"
+
+function readIpPort(interface)
+	
+	local file = io.open("deploy", "r" )
+
+	if file then
+		print[[foi]]
+		for line in file:lines() do 
+			if(interface == line) then
+				local ipPortline = file:read("*l")
+				ip, port = table.unpack(split(ipPortline," "))
+				print [[teste set ]]
+				print (ip)
+				print (port)
+				file:close()
+				return ip ,port 
+			end
+
+		end
+		file:close()
+	end
+
+end
+      
+ip, port = readIpPort("interface1.lua")
+p1 = createProxy( ip, port , "interface1.lua")
+p2 = createProxy( readIpPort("interface1.lua") , "interface1.lua")
 print(p1.foo(3, 5))
 print(p1.foo(3))
 print(p1.foo())
