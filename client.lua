@@ -1,4 +1,4 @@
-dofile "luarpc.lua"
+local rpc = require "luarpc"
 --[[
 p1 = createProxy("0.0.0.0", 50340, "interface1.lua")
 p2 = createProxy("0.0.0.0", 50341, "interface1.lua")
@@ -37,17 +37,14 @@ function counsumeIpPort(interface)
 
 end
       
-ip, port = counsumeIpPort("interface1.lua")
-p1 = createProxy( ip, port , "interface1.lua")
+p1 = rpc.createProxy( counsumeIpPort("interface1.lua") , "interface1.lua")
 print("Proxy 1 created in host " .. ip .. " and port " .. port)
 
-
-ip , port = counsumeIpPort("interface1.lua")
-p2 = createProxy( ip,port  , "interface1.lua")
+p2 = rpc.createProxy( counsumeIpPort("interface1.lua") , "interface1.lua")
 print("Proxy 2 created in host " .. ip .. " and port " .. port)
 
-ip , port = counsumeIpPort("interface2.lua")
-p3 = createProxy( ip,port  , "interface2.lua")
+
+p3 = rpc.createProxy( counsumeIpPort("interface2.lua") , "interface2.lua")
 print("Proxy 3 created in host " .. ip .. " and port " .. port)
 
 print "Proxy 1 tests"

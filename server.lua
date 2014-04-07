@@ -1,4 +1,4 @@
-dofile "luarpc.lua"
+local rpc = require "luarpc"
 
 function publishContact( serv , interface)
       local text = io.open("deploy", "r" ):read("*a")
@@ -68,11 +68,11 @@ myobj3 = { foo =
 
 -- cria servidores:
 print "Creating servant 1"
-serv1 = createServant (myobj1, "interface1.lua")
+serv1 = rpc.createServant (myobj1, "interface1.lua")
 print "Creating servant 2"
-serv2 = createServant (myobj2, "interface1.lua")
+serv2 = rpc.createServant (myobj2, "interface1.lua")
 print "Creating servant 3"
-serv3 = createServant (myobj3, "interface2.lua")
+serv3 = rpc.createServant (myobj3, "interface2.lua")
 -- usa as infos retornadas em serv1 e serv2 para divulgar contato 
 -- (IP e porta) dos servidores
 print("Obj1 ip: " .. serv1.ip .. " port: " .. serv1.port)
@@ -85,5 +85,5 @@ publishContact(serv3,"interface2.lua")
 
 -- accept client
 
-waitIncoming()
+rpc.waitIncoming()
 

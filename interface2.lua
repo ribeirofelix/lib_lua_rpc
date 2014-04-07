@@ -1,4 +1,5 @@
-interface { name = "testInterface",
+local rpc = require "luarpc"
+rpc.interface { name = "testInterface",
             methods = {
                foo = {
                  resulttype = "double",

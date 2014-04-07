@@ -1,9 +1,12 @@
+
+local Mod = {}
+
 local lastInterface = nil
 errorPrefix = "___ERRORPC: "
 createdServants = {}
 
 -- Validates a table as an acceptable interface for this library, returns interface if it's ok or nil otherwise
-function ValidateInterface (interfaceObj)
+function Mod.ValidateInterface (interfaceObj)
 	local a = interfaceObj
 	
 	if type(a) ~= "table" or not a.methods or type(a.methods) ~= "table" then
@@ -48,12 +51,12 @@ function ValidateInterface (interfaceObj)
 end
 
 -- Keeps a reference to the last validated interface (or nil)
-function interface (a)
-	lastInterface = ValidateInterface(a)
+function Mod.interface (a)
+	lastInterface = Mod.ValidateInterface(a)
 end
 
 -- Searches a method by its name in an interface, returns the method name if it exists or nil otherwise
-function searchMethod (interfaceObj, methodName)
+function Mod.searchMethod (interfaceObj, methodName)
 	for i, v in pairs (interfaceObj.methods) do
 		if i==methodName then 
 			return methodName
@@ -69,7 +72,7 @@ end
 -- direction: "in" if data are arguments or "out" if data are returns
 -- Note: it also calculates missing arguments/returns
 -- Note (2): it also delete extra arguments/returns from data
-function VerifyData(methodName, interface, data, direction)
+function Mod.VerifyData(methodName, interface, data, direction)
 	-- checks whether direction is correctly given
 	local inDir, outDir = false, false
 	if direction=="in" then
@@ -139,7 +142,7 @@ end
 
 -- Validates types, return true if type1 is equivalent to type2
 -- Ex: in Lua, type of 5 is "number", but in the interface of this library, it's "double"
-function validateType( type1 , type2 )
+function Mod.validateType( type1 , type2 )
 	if type1=="nil" or type2=="nil" then
 		return true
 	elseif type1=="double" and type2=="number" or type1=="number" and type2=="double" then
@@ -151,7 +154,7 @@ function validateType( type1 , type2 )
 	end
 end
 
-function createStringMessage(str, errorString)
+function Mod.createStringMessage(str, errorString)
 	local strMsg = string.gsub(str, '\\', '\\\\')
 	strMsg = string.gsub(strMsg, '\"', '\\\"')
 	strMsg = string.gsub(strMsg, '\n', '\\n')
@@ -161,7 +164,7 @@ function createStringMessage(str, errorString)
 	return strMsg .. "\n"
 end
 
-function retrieveString(strMsg, errorString)
+function Mod.retrieveString(strMsg, errorString)
 	local str = ""
 	if not errorString then
 		str = string.sub(strMsg, 2, -2)
@@ -175,7 +178,7 @@ function retrieveString(strMsg, errorString)
 end
 
 -- Creates a message assuming there are no extra or missing arguments/returns
-function createMessage(methodName, t)
+function Mod.createMessage(methodName, t)
 	-- t is a table with arguments or results
 	local msg = ""
 	if methodName then
@@ -208,7 +211,7 @@ function createMessage(methodName, t)
 end
 
 -- Actually makes rpc call
-function rpcCall (ip, port, methodName, interface, args)
+function Mod.rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
 	local argsOk = VerifyData(methodName, interface, args, "in")
 	if not argsOk then
@@ -249,7 +252,7 @@ end
 
 -- Receives a certain number of messages from connection, according to direction
 -- direction is "in" if arguments are expected, direction is "out" if returns are expected
-function retrieveDataStrings(connection, methodName, interfaceObj, direction)
+function Mod.retrieveDataStrings(connection, methodName, interfaceObj, direction)
 	local noData = 0
 	if direction == "in" then
 		noData = interfaceObj.methods[methodName].noInArg+interfaceObj.methods[methodName].noInOutArg
@@ -279,7 +282,7 @@ function retrieveDataStrings(connection, methodName, interfaceObj, direction)
 end
 
 -- Convert strings received by retrieveDataStrings to types expected by interface
-function retrieveData(dataStrings, methodName, interfaceObj, inOut)
+function Mod.retrieveData(dataStrings, methodName, interfaceObj, inOut)
 	local inDir = false
 	local outDir = false
 	if inOut == "in" then
@@ -328,7 +331,7 @@ end
 
 -- Searches a servant by its ip and port in createdServants
 -- Used so that server is able to identify which servant should handle the request
-function searchServant (ip, port)
+function Mod.searchServant (ip, port)
   for _, v in ipairs(createdServants) do
     if (v.ip==ip and v.port==port) then
       return v
@@ -337,7 +340,7 @@ function searchServant (ip, port)
 end
 
 -- Creates a table that can be used in socket.select
-function newset()
+function Mod.newset()
     local reverse = {}
     local set = {}
     return setmetatable(set, {__index = {
@@ -361,7 +364,7 @@ function newset()
     }})
 end
 
-function createServant (obj, interfaceFile)
+function Mod.createServant (obj, interfaceFile)
 	dofile(interfaceFile)
 	local interfaceObj = lastInterface
 	if not interfaceObj then
@@ -384,7 +387,7 @@ function createServant (obj, interfaceFile)
 	return servant
 end
 
-function createProxy (ip, port, interfaceFile)
+function Mod.createProxy (ip, port, interfaceFile)
 	dofile(interfaceFile)
 	local interfaceObj = lastInterface
 	if not interfaceObj then 
@@ -417,8 +420,8 @@ function createProxy (ip, port, interfaceFile)
 	return proxy
 end
 
-function waitIncoming ()
-	local set = newset()
+function Mod.waitIncoming ()
+	local set = Mod.newset()
 	for _, v in ipairs (createdServants) do
 		set:insert(v.server)
 	end
@@ -428,7 +431,7 @@ function waitIncoming ()
 	  local socketsToRead = socket.select(set, nil)
 	  for i, v in ipairs (socketsToRead) do
 	    local ip, port = v:getsockname()
-	    local servant = searchServant (ip, port)
+	    local servant = Mod.searchServant (ip, port)
 	    local client = assert(servant.server:accept())
 	    print ("Cliente conectado " .. ip .. ":" .. port) 
 	    local msg, errorRec = client:receive()
@@ -437,13 +440,13 @@ function waitIncoming ()
 	      local method = servant.object[msg]
 	      if method then
 	        print("Method " .. msg .. " declared")
-	        local argsStrings = retrieveDataStrings(client, msg, servant.interface, "in")
+	        local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
 	        print("Arguments " .. table.concat(argsStrings, " "))
-	        local args = retrieveData(argsStrings, msg, servant.interface, "in")
+	        local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
 	        results = table.pack(pcall(method, table.unpack(args)))
-	        resultsOk = VerifyData(msg, servant.interface, results, "out")
+	        resultsOk = Mod.VerifyData(msg, servant.interface, results, "out")
 	        if resultsOk then
-	          answer = createMessage(nil, results)
+	          answer = Mod.createMessage(nil, results)
 	        else
 	          answer = errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
 	        end
@@ -461,3 +464,5 @@ function waitIncoming ()
 	  	end
 	end
 end
+
+return Mod
