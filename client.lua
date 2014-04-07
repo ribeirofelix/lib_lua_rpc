@@ -36,15 +36,17 @@ function counsumeIpPort(interface)
 	end
 
 end
-      
-p1 = rpc.createProxy( counsumeIpPort("interface1.lua") , "interface1.lua")
+
+ip , port = counsumeIpPort("interface1.lua")
+p1 = rpc.createProxy( ip, port , "interface1.lua")
 print("Proxy 1 created in host " .. ip .. " and port " .. port)
 
-p2 = rpc.createProxy( counsumeIpPort("interface1.lua") , "interface1.lua")
+ip , port = counsumeIpPort("interface1.lua")
+p2 = rpc.createProxy( ip, port , "interface1.lua")
 print("Proxy 2 created in host " .. ip .. " and port " .. port)
 
-
-p3 = rpc.createProxy( counsumeIpPort("interface2.lua") , "interface2.lua")
+ip , port = counsumeIpPort("interface2.lua")
+p3 = rpc.createProxy( ip, port , "interface2.lua")
 print("Proxy 3 created in host " .. ip .. " and port " .. port)
 
 print "Proxy 1 tests"

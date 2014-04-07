@@ -1,9 +1,9 @@
 
 local Mod = {}
 
-local lastInterface = nil
-errorPrefix = "___ERRORPC: "
-createdServants = {}
+Mod.lastInterface = nil
+Mod.errorPrefix = "___ERRORPC: "
+Mod.createdServants = {}
 
 -- Validates a table as an acceptable interface for this library, returns interface if it's ok or nil otherwise
 function Mod.ValidateInterface (interfaceObj)
@@ -52,7 +52,7 @@ end
 
 -- Keeps a reference to the last validated interface (or nil)
 function Mod.interface (a)
-	lastInterface = Mod.ValidateInterface(a)
+	Mod.lastInterface = Mod.ValidateInterface(a)
 end
 
 -- Searches a method by its name in an interface, returns the method name if it exists or nil otherwise
@@ -101,7 +101,7 @@ function Mod.VerifyData(methodName, interface, data, direction)
 
 		-- there was no error, first result should match the resulttype in interface
 		noData = noData + 1
-		if not validateType(interface.methods[methodName].resulttype, type(data[noData])) then
+		if not Mod.validateType(interface.methods[methodName].resulttype, type(data[noData])) then
 			return false
 		end
 		noData = noData + 1
@@ -112,7 +112,7 @@ function Mod.VerifyData(methodName, interface, data, direction)
 	for i, v in ipairs (interfaceArgs) do
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
 			if not (noData > #data) then
-				if not validateType(v.type, type(data[noData])) then
+				if not Mod.validateType(v.type, type(data[noData])) then
 					return false
 				end
 			end
@@ -185,14 +185,14 @@ function Mod.createMessage(methodName, t)
 		msg = msg .. methodName .. "\n"
 	end
 	if t[1]==false then
-		local errorString = errorPrefix .. t[2]
-		msg = createStringMessage(errorString, true)
+		local errorString = Mod.errorPrefix .. t[2]
+		msg = Mod.createStringMessage(errorString, true)
 		return msg
 	end
 	for i, v in pairs (t) do
 		if i~="n" and i~="null" then
 			if (type(v)=="string") then
-				msg = msg .. createStringMessage(v, false)
+				msg = msg .. Mod.createStringMessage(v, false)
 			elseif type(v)=="number" then
 				msg = msg .. v .. "\n"
 			elseif type(v)=="nil" then
@@ -213,9 +213,9 @@ end
 -- Actually makes rpc call
 function Mod.rpcCall (ip, port, methodName, interface, args)
 	-- Verify Arguments
-	local argsOk = VerifyData(methodName, interface, args, "in")
+	local argsOk = Mod.VerifyData(methodName, interface, args, "in")
 	if not argsOk then
-		print ( errorPrefix .. "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
+		print ( Mod.errorPrefix .. "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
 		return nil
 	end
 	local results = {}
@@ -225,7 +225,7 @@ function Mod.rpcCall (ip, port, methodName, interface, args)
 
 	if connection then
 		--Serialize message
-		local msg = createMessage(methodName,args)
+		local msg = Mod.createMessage(methodName,args)
 		--print("Mensagem\n" .. msg .. "Fim mensagem\n")
 
 		--Send message
@@ -235,9 +235,9 @@ function Mod.rpcCall (ip, port, methodName, interface, args)
 			print ("Error: " .. error)
 		else
 			--Receive message
-			local resultsStrings = retrieveDataStrings(connection, methodName, interface, "out")
+			local resultsStrings = Mod.retrieveDataStrings(connection, methodName, interface, "out")
 			if resultsStrings then
-				results = retrieveData(resultsStrings, methodName, interface, "out") 
+				results = Mod.retrieveData(resultsStrings, methodName, interface, "out") 
 			else
 
 			end
@@ -268,7 +268,7 @@ function Mod.retrieveDataStrings(connection, methodName, interfaceObj, direction
       local msg, e = connection:receive()
       if not e then
         table.insert(dataString, msg)
-        local byte = string.find(msg, errorPrefix, 1)
+        local byte = string.find(msg, Mod.errorPrefix, 1)
         if byte and byte==1 then
         	break
         end
@@ -297,14 +297,14 @@ function Mod.retrieveData(dataStrings, methodName, interfaceObj, inOut)
 	local noData = 1
 
 	if outDir then
-		local byte = string.find(dataStrings[1], errorPrefix, 1)
+		local byte = string.find(dataStrings[1], Mod.errorPrefix, 1)
         if byte and byte==1 then
-        	print(retrieveString(dataStrings[1], true))
+        	print(Mod.retrieveString(dataStrings[1], true))
         	return data
         end
 		local restype = interfaceObj.methods[methodName].resulttype
 		if restype == "string" or restype == "char" then
-			data[noData] = retrieveString(dataStrings[noData], false)
+			data[noData] = Mod.retrieveString(dataStrings[noData], false)
 		elseif restype == "double" then
 			data[noData] = tonumber(dataStrings[noData])
 		end
@@ -315,7 +315,7 @@ function Mod.retrieveData(dataStrings, methodName, interfaceObj, inOut)
 		if (v.direction~="in" and outDir or v.direction~="out" and inDir) then
 			if dataStrings[noData] ~= "nil" then
 				if v.type == "string" or v.type == "char" then
-					data[noData] = retrieveString(dataStrings[noData], false)
+					data[noData] = Mod.retrieveString(dataStrings[noData], false)
 				elseif v.type == "double" then
 					data[noData] = tonumber(dataStrings[noData])
 				end
@@ -332,7 +332,7 @@ end
 -- Searches a servant by its ip and port in createdServants
 -- Used so that server is able to identify which servant should handle the request
 function Mod.searchServant (ip, port)
-  for _, v in ipairs(createdServants) do
+  for _, v in ipairs(Mod.createdServants) do
     if (v.ip==ip and v.port==port) then
       return v
     end
@@ -366,7 +366,7 @@ end
 
 function Mod.createServant (obj, interfaceFile)
 	dofile(interfaceFile)
-	local interfaceObj = lastInterface
+	local interfaceObj = Mod.lastInterface
 	if not interfaceObj then
 		-- TO DO: throw error
 		return nil
@@ -383,15 +383,16 @@ function Mod.createServant (obj, interfaceFile)
 	servant.object = obj
 	servant.interface = interfaceObj
 
-	table.insert(createdServants, servant)
+	table.insert(Mod.createdServants, servant)
 	return servant
 end
 
 function Mod.createProxy (ip, port, interfaceFile)
 	dofile(interfaceFile)
-	local interfaceObj = lastInterface
+
+	local interfaceObj = Mod.lastInterface
 	if not interfaceObj then 
-		print ( errorPrefix .. "Interface \"".. interfaceFile .. "\" inválida!")
+		print ( Mod.errorPrefix .. "Interface \"".. interfaceFile .. "\" inválida!")
 		return nil 
 	end
 
@@ -403,15 +404,15 @@ function Mod.createProxy (ip, port, interfaceFile)
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
-					local method = searchMethod (proxy.interface, k)
+					local method = Mod.searchMethod (proxy.interface, k)
 					if not method then
 						proxy[k] =  function (...)
-										print(errorPrefix .. "Method \"" .. k .. "\" not found")
+										print(Mod.errorPrefix .. "Method \"" .. k .. "\" not found")
 									end
 						return proxy[k]
 					else
 						proxy[k] = 	function (...)
-										return rpcCall(ip, port, k, proxy.interface, table.pack(...))
+										return Mod.rpcCall(ip, port, k, proxy.interface, table.pack(...))
 									end
 						return proxy[k]
 					end
@@ -422,7 +423,7 @@ end
 
 function Mod.waitIncoming ()
 	local set = Mod.newset()
-	for _, v in ipairs (createdServants) do
+	for _, v in ipairs (Mod.createdServants) do
 		set:insert(v.server)
 	end
 
@@ -448,10 +449,10 @@ function Mod.waitIncoming ()
 	        if resultsOk then
 	          answer = Mod.createMessage(nil, results)
 	        else
-	          answer = errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
+	          answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
 	        end
 	      else
-	        answer = errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
+	        answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
 	      end
 	      print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
 	      local bytes, errorSend = client:send(answer)
