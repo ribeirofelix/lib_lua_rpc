@@ -55,16 +55,6 @@ function Mod.interface (a)
 	Mod.lastInterface = Mod.ValidateInterface(a)
 end
 
--- Searches a method by its name in an interface, returns the method name if it exists or nil otherwise
-function Mod.searchMethod (interfaceObj, methodName)
-	for i, v in pairs (interfaceObj.methods) do
-		if i==methodName then 
-			return methodName
-		end
-	end
-	return nil
-end
-
 -- Verifies data types, return true if data is consistent or false otherwise
 -- methodName: name of the method
 -- interface: interface object
@@ -404,7 +394,7 @@ function Mod.createProxy (ip, port, interfaceFile)
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
-					local method = Mod.searchMethod (proxy.interface, k)
+					local method = proxy.interface.methods[k]
 					if not method then
 						proxy[k] =  function (...)
 										print(Mod.errorPrefix .. "Method \"" .. k .. "\" not found")
