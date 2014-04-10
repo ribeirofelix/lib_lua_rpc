@@ -354,6 +354,37 @@ function Mod.newset()
     }})
 end
 
+-- Answers the request
+function Mod.answerRequest (client, servant)
+	local msg, errorRec = client:receive()
+	if not errorRec then
+		local answer = ""
+		local method = servant.object[msg]
+		if method then
+			print("Method " .. msg .. " declared")
+			local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
+			print("Arguments " .. table.concat(argsStrings, " "))
+			local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
+			results = table.pack(pcall(method, table.unpack(args)))
+			resultsOk = Mod.VerifyData(msg, servant.interface, results, "out")
+			if resultsOk then
+				answer = Mod.createMessage(nil, results)
+			else
+				answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
+			end
+		else
+			answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
+		end
+		print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
+		local bytes, errorSend = client:send(answer)
+		if not bytes then
+			-- couldn't send answer: what to do?
+			print "Couldn't send answer"
+		end
+		print "--------"
+	end
+end
+
 function Mod.createServant (obj, interfaceFile)
 	dofile(interfaceFile)
 	local interfaceObj = Mod.lastInterface
@@ -419,40 +450,14 @@ function Mod.waitIncoming ()
 
 	local socket = require "socket"
 	while (true) do
-	  local socketsToRead = socket.select(set, nil)
-	  for i, v in ipairs (socketsToRead) do
-	    local ip, port = v:getsockname()
-	    local servant = Mod.searchServant (ip, port)
-	    local client = assert(servant.server:accept())
-	    print ("Cliente conectado " .. ip .. ":" .. port) 
-	    local msg, errorRec = client:receive()
-	    if not errorRec then
-	      local answer = ""
-	      local method = servant.object[msg]
-	      if method then
-	        print("Method " .. msg .. " declared")
-	        local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
-	        print("Arguments " .. table.concat(argsStrings, " "))
-	        local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
-	        results = table.pack(pcall(method, table.unpack(args)))
-	        resultsOk = Mod.VerifyData(msg, servant.interface, results, "out")
-	        if resultsOk then
-	          answer = Mod.createMessage(nil, results)
-	        else
-	          answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
-	        end
-	      else
-	        answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
-	      end
-	      print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
-	      local bytes, errorSend = client:send(answer)
-	      if not bytes then
-	        -- couldn't send answer: what to do?
-	        print "Couldn't send answer"
-	      end
-	      print "--------"
-	      end
-	  	end
+		local socketsToRead = socket.select(set, nil)
+		for i, v in ipairs (socketsToRead) do
+			local ip, port = v:getsockname()
+			local servant = Mod.searchServant (ip, port)
+			local client = assert(servant.server:accept())
+			print ("Cliente conectado " .. ip .. ":" .. port) 
+			Mod.answerRequest(client, servant)
+	  	end	    
 	end
 end
 
