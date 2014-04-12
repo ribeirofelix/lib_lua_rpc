@@ -371,7 +371,7 @@ function Mod.createServant (obj, interfaceFile)
 		-- TO DO: throw error
 		return nil
 	end
-
+	-- TODO : verify if require is slow
 	local socket = require("socket")
 	local server = assert(socket.bind("*", 0))
 	local ip, port = server:getsockname()
