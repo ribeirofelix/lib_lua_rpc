@@ -54,9 +54,6 @@ print(p1.foo(3, 5))
 print(p1.foo(3))
 print(p1.foo())
 print(p1.foo(1, 2, 3))
-print(p1.bar("hello"))
-print(p1.bar(nil))
-print(p1.bar("string\n\"muito\"\ncomplicada!"))
 
 print "Proxy 2 tests"
 print(p2.foo(3, 5))
@@ -66,3 +63,8 @@ print "Proxy 3 tests"
 print(p3.foo(1, 2, 3))
 print(p3.bar())
 print(p3.boo("testing \\ rpc!"))
+
+print "Proxy 1 tests"
+print(p1.bar("hello"))
+print(p1.bar(nil))
+print(p1.bar("string\n\"muito\"\ncomplicada!"))

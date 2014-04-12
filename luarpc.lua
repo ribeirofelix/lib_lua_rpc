@@ -55,16 +55,6 @@ function Mod.interface (a)
 	Mod.lastInterface = Mod.ValidateInterface(a)
 end
 
--- Searches a method by its name in an interface, returns the method name if it exists or nil otherwise
-function Mod.searchMethod (interfaceObj, methodName)
-	for i, v in pairs (interfaceObj.methods) do
-		if i==methodName then 
-			return methodName
-		end
-	end
-	return nil
-end
-
 -- Verifies data types, return true if data is consistent or false otherwise
 -- methodName: name of the method
 -- interface: interface object
@@ -211,7 +201,10 @@ function Mod.createMessage(methodName, t)
 end
 
 -- Actually makes rpc call
-function Mod.rpcCall (ip, port, methodName, interface, args)
+function Mod.rpcCall (proxy, methodName, args)
+	local ip = proxy.ip
+	local port = proxy.port
+	local interface = proxy.interface
 	-- Verify Arguments
 	local argsOk = Mod.VerifyData(methodName, interface, args, "in")
 	if not argsOk then
@@ -221,19 +214,35 @@ function Mod.rpcCall (ip, port, methodName, interface, args)
 	local results = {}
 	--Create connection
 	local socket = require("socket")
-	local connection = assert(socket.connect(ip, port))
+
+	local connection = nil
+
+	-- Check if connection was created once:
+	if not proxy.isConnected then 
+		proxy.connection = assert(socket.connect(ip, port))
+		proxy.isConnected = true
+		--print("Created connection " .. ip .. ":" .. port)
+		proxy.connection:setoption("tcp-nodelay", true)
+	end
+	connection = proxy.connection
 
 	if connection then
 		--Serialize message
 		local msg = Mod.createMessage(methodName,args)
 		--print("Mensagem\n" .. msg .. "Fim mensagem\n")
-
+::sending::
 		--Send message
 		local bytes, error = connection:send(msg)
+		local gIp,gPort = connection:getsockname()
+		--print ("Tryed to send message\n" .. msg .."through " .. gIp .. ":" .. gPort)
 		--TO DO - what happens if there's an error?
 		if not bytes then
-			print ("Error: " .. error)
+			proxy.connection = assert(socket.connect(ip, port))
+			proxy.connection:setoption("tcp-nodelay", true)
+			connection = proxy.connection
+			goto sending
 		else
+			--print "Trying to receive"
 			--Receive message
 			local resultsStrings = Mod.retrieveDataStrings(connection, methodName, interface, "out")
 			if resultsStrings then
@@ -242,8 +251,6 @@ function Mod.rpcCall (ip, port, methodName, interface, args)
 
 			end
 		end
-		--Close connection
-		connection:close()
 	else
 		--Couldn't connect, what to do?
 	end
@@ -333,7 +340,9 @@ end
 -- Used so that server is able to identify which servant should handle the request
 function Mod.searchServant (ip, port)
   for _, v in ipairs(Mod.createdServants) do
-    if (v.ip==ip and v.port==port) then
+  	--print ("Searching servant " .. v.ip .. ":" .. v.port)
+    --if (v.ip==ip and v.port==port) then
+    if v.port==port then
       return v
     end
   end
@@ -364,6 +373,92 @@ function Mod.newset()
     }})
 end
 
+-- Answers the request
+function Mod.answerRequest (client, servant, set)
+	-- Receive message with method name
+	local msg, errorRec = client:receive()
+	if not errorRec then
+		local answer = ""
+
+		-- Check if method was implemented by servant's object
+		local method = servant.object[msg]
+		if method then
+			print("Method " .. msg .. " declared")
+
+			-- Receives messages with arguments
+			local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
+			print("Arguments " .. table.concat(argsStrings, " "))
+
+			-- Convert arguments (string) received into expected typed values
+			local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
+
+			-- Make protected call and pack results
+			results = table.pack(pcall(method, table.unpack(args)))
+
+			-- Check if results are typed as expected
+			resultsOk = Mod.VerifyData(msg, servant.interface, results, "out")
+			if resultsOk then
+				answer = Mod.createMessage(nil, results)
+			else
+				answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
+			end
+		else
+			-- receive arguments even thought method is not implemented
+			Mod.retrieveDataStrings(client, msg, servant.interface, "in")
+			answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
+		end
+		print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
+
+		-- Send answer
+		local bytes, errorSend = client:send(answer)
+		if not bytes then
+			-- couldn't send answer: what to do?
+			print "Couldn't send answer"
+		end
+		print "--------"
+	else
+		set:remove(client)
+		local index = nil
+		for i, v in ipairs (activeConnections) do
+			if v == client then
+				index = i
+			end
+		end
+		table.remove(activeConnections, index)
+		print "Couldn\'t handle request"
+	end
+end
+
+function Mod.activateConnection (connection, servant, set)
+	print "Activating connection "
+
+	if not activeConnections then
+		activeConnections = {}
+	end
+	print (#activeConnections .. " Connected clients")
+	local cIp, cPort = connection:getsockname()
+	for _, v in ipairs (activeConnections) do
+		local vIp, vPort = v:getsockname()
+		if cIp == vIp and cPort == vPort then
+			print ("Cliente ainda conectado " .. vIp .. ":" .. vPort)
+			return connection
+		end
+	end
+	if #activeConnections==2 then
+		local removedConnection = table.remove(activeConnections, 1)
+		local ip, port = removedConnection:getsockname()
+		removedConnection:close()
+		print ("Cliente desconectado " .. ip .. ":" .. port)
+		set:remove(removedConnection)
+	end
+	local client = assert(servant.server:accept())
+	client:setoption("tcp-nodelay", true)
+	print ("Cliente conectado " .. servant.ip .. ":" .. servant.port)
+	set:insert(client)
+	table.insert(activeConnections, client)
+	return client
+end
+
 function Mod.createServant (obj, interfaceFile)
 	dofile(interfaceFile)
 	local interfaceObj = Mod.lastInterface
@@ -374,6 +469,7 @@ function Mod.createServant (obj, interfaceFile)
 	-- TODO : verify if require is slow
 	local socket = require("socket")
 	local server = assert(socket.bind("*", 0))
+	server:setoption("tcp-nodelay", true)
 	local ip, port = server:getsockname()
 
 	local servant = {}
@@ -400,11 +496,12 @@ function Mod.createProxy (ip, port, interfaceFile)
 	proxy.interface = interfaceObj
 	proxy.port = port
 	proxy.ip = ip
+	proxy.isConnected = false -- proxy is NOT Connected
 
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
-					local method = Mod.searchMethod (proxy.interface, k)
+					local method = proxy.interface.methods[k]
 					if not method then
 						proxy[k] =  function (...)
 										print(Mod.errorPrefix .. "Method \"" .. k .. "\" not found")
@@ -412,7 +509,7 @@ function Mod.createProxy (ip, port, interfaceFile)
 						return proxy[k]
 					else
 						proxy[k] = 	function (...)
-										return Mod.rpcCall(ip, port, k, proxy.interface, table.pack(...))
+										return Mod.rpcCall(proxy, k, table.pack(...))
 									end
 						return proxy[k]
 					end
@@ -429,40 +526,20 @@ function Mod.waitIncoming ()
 
 	local socket = require "socket"
 	while (true) do
-	  local socketsToRead = socket.select(set, nil)
-	  for i, v in ipairs (socketsToRead) do
-	    local ip, port = v:getsockname()
-	    local servant = Mod.searchServant (ip, port)
-	    local client = assert(servant.server:accept())
-	    print ("Cliente conectado " .. ip .. ":" .. port) 
-	    local msg, errorRec = client:receive()
-	    if not errorRec then
-	      local answer = ""
-	      local method = servant.object[msg]
-	      if method then
-	        print("Method " .. msg .. " declared")
-	        local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
-	        print("Arguments " .. table.concat(argsStrings, " "))
-	        local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
-	        results = table.pack(pcall(method, table.unpack(args)))
-	        resultsOk = Mod.VerifyData(msg, servant.interface, results, "out")
-	        if resultsOk then
-	          answer = Mod.createMessage(nil, results)
-	        else
-	          answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" returned invalid values.\n"
-	        end
-	      else
-	        answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
-	      end
-	      print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
-	      local bytes, errorSend = client:send(answer)
-	      if not bytes then
-	        -- couldn't send answer: what to do?
-	        print "Couldn't send answer"
-	      end
-	      print "--------"
-	      end
-	  	end
+		local socketsToRead = socket.select(set, nil)
+		for i, v in ipairs (socketsToRead) do
+			local ip, port = v:getsockname()
+			print ("Heard from " .. ip .. ":" .. port)
+			local servant = Mod.searchServant (ip, port)
+			if not servant then
+				print ("No servant in " .. ip .. ":" .. port)
+				--set:remove(v)
+			else
+				local client = Mod.activateConnection(v, servant, set)
+				--local client = assert(servant.server:accept())
+				Mod.answerRequest(client, servant, set)
+			end
+	  	end	    
 	end
 end
 
