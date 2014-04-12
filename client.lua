@@ -46,7 +46,6 @@ setup(function ()
 	ip , port = counsumeIpPort("interface2.lua")
 	p3 = rpc.createProxy( ip, port , "interface2.lua")
 	print("Proxy 3 created in host " .. ip .. " and port " .. port)
-
 end )
 
 
@@ -97,6 +96,37 @@ describe("Proxy #p3 tests", function()
   end)
 end)
 
+describe("Batch test to proxy 1 #bkp1" , function ()
+	it("1000 requests to p1", function  ()
+		for i=1,1000 do
+			p1.foo(3, 5)
+		end
+	end)
+end)
+
+describe("Batch test to proxy 1 #b10kp1" , function ()
+	it("10000 requests to p1", function  ()
+		for i=1,10000 do
+			p1.foo(3, 5)
+		end
+	end)
+end)
+
+describe("Batch test to proxy 1 #b100kp1" , function ()
+	it("100000 requests to p1", function  ()
+		for i=1,100000 do
+			p1.foo(3, 5)
+		end
+	end)
+end)
+
+describe("Batch test to proxy 1 #bmip1" , function ()
+	it("1000000 requests to p1", function  ()
+		for i=1,1000000 do
+			p1.foo(3, 5)
+		end
+	end)
+end)
 
 
 

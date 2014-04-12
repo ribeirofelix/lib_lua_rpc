@@ -26,11 +26,8 @@ function publishContact( serv , interface)
 
       file = io.open("deploy","w")
 
-      print "Result"
-      print(result)
       file:write(result)
       file:close()
-      print[[closed]]
 end
 
 myobj1 = { foo = 

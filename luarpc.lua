@@ -384,11 +384,11 @@ function Mod.answerRequest (client, servant, set)
 		-- Check if method was implemented by servant's object
 		local method = servant.object[msg]
 		if method then
-			print("Method " .. msg .. " declared")
+			--print("Method " .. msg .. " declared")
 
 			-- Receives messages with arguments
 			local argsStrings = Mod.retrieveDataStrings(client, msg, servant.interface, "in")
-			print("Arguments " .. table.concat(argsStrings, " "))
+			--print("Arguments " .. table.concat(argsStrings, " "))
 
 			-- Convert arguments (string) received into expected typed values
 			local args = Mod.retrieveData(argsStrings, msg, servant.interface, "in")
@@ -408,7 +408,7 @@ function Mod.answerRequest (client, servant, set)
 			Mod.retrieveDataStrings(client, msg, servant.interface, "in")
 			answer = Mod.errorPrefix .. "Method \"" .. msg .. "\" not declared in servant.\n"
 		end
-		print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
+		--print ("Mensagem de Retorno \n" .. answer .. "Fim mensagem de retorno")
 
 		-- Send answer
 		local bytes, errorSend = client:send(answer)
@@ -416,7 +416,7 @@ function Mod.answerRequest (client, servant, set)
 			-- couldn't send answer: what to do?
 			print "Couldn't send answer"
 		end
-		print "--------"
+		--print "--------"
 	else
 		set:remove(client)
 		local index = nil
@@ -431,17 +431,17 @@ function Mod.answerRequest (client, servant, set)
 end
 
 function Mod.activateConnection (connection, servant, set)
-	print "Activating connection "
+	--print "Activating connection "
 
 	if not activeConnections then
 		activeConnections = {}
 	end
-	print (#activeConnections .. " Connected clients")
+	--print (#activeConnections .. " Connected clients")
 	local cIp, cPort = connection:getsockname()
 	for _, v in ipairs (activeConnections) do
 		local vIp, vPort = v:getsockname()
 		if cIp == vIp and cPort == vPort then
-			print ("Cliente ainda conectado " .. vIp .. ":" .. vPort)
+			--print ("Cliente ainda conectado " .. vIp .. ":" .. vPort)
 			return connection
 		end
 	end
@@ -449,12 +449,12 @@ function Mod.activateConnection (connection, servant, set)
 		local removedConnection = table.remove(activeConnections, 1)
 		local ip, port = removedConnection:getsockname()
 		removedConnection:close()
-		print ("Cliente desconectado " .. ip .. ":" .. port)
+		--print ("Cliente desconectado " .. ip .. ":" .. port)
 		set:remove(removedConnection)
 	end
 	local client = assert(servant.server:accept())
 	client:setoption("tcp-nodelay", true)
-	print ("Cliente conectado " .. servant.ip .. ":" .. servant.port)
+	--print ("Cliente conectado " .. servant.ip .. ":" .. servant.port)
 	set:insert(client)
 	table.insert(activeConnections, client)
 	return client
@@ -530,7 +530,7 @@ function Mod.waitIncoming ()
 		local socketsToRead = socket.select(set, nil)
 		for i, v in ipairs (socketsToRead) do
 			local ip, port = v:getsockname()
-			print ("Heard from " .. ip .. ":" .. port)
+			--print ("Heard from " .. ip .. ":" .. port)
 			local servant = Mod.searchServant (ip, port)
 			if not servant then
 				print ("No servant in " .. ip .. ":" .. port)
