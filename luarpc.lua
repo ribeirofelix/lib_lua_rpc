@@ -51,7 +51,7 @@ function Mod.ValidateInterface (interfaceObj)
 end
 
 -- Keeps a reference to the last validated interface (or nil)
-function Mod.interface (a)
+function interface (a)
 	Mod.lastInterface = Mod.ValidateInterface(a)
 end
 
@@ -229,28 +229,29 @@ function Mod.rpcCall (proxy, methodName, args)
 	if connection then
 		--Serialize message
 		local msg = Mod.createMessage(methodName,args)
-		--print("Mensagem\n" .. msg .. "Fim mensagem\n")
-::sending::
-		--Send message
-		local bytes, error = connection:send(msg)
-		local gIp,gPort = connection:getsockname()
-		--print ("Tryed to send message\n" .. msg .."through " .. gIp .. ":" .. gPort)
-		--TO DO - what happens if there's an error?
-		if not bytes then
+
+		-- TODO : verificar com a erica se pode tirar esse getsocketname
+		local gIp,gPort
+		local trySend  = function () local bytes, _ = connection:send(msg) 
+									 gIp,gPort = connection:getsockname()
+									 return bytes
+						 end
+	
+		while not trySend() do
 			proxy.connection = assert(socket.connect(ip, port))
 			proxy.connection:setoption("tcp-nodelay", true)
 			connection = proxy.connection
-			goto sending
-		else
-			--print "Trying to receive"
-			--Receive message
-			local resultsStrings = Mod.retrieveDataStrings(connection, methodName, interface, "out")
-			if resultsStrings then
-				results = Mod.retrieveData(resultsStrings, methodName, interface, "out") 
-			else
-
-			end
 		end
+
+			
+		--Receive message
+		local resultsStrings = Mod.retrieveDataStrings(connection, methodName, interface, "out")
+		if resultsStrings then
+			results = Mod.retrieveData(resultsStrings, methodName, interface, "out") 
+		else
+
+		end
+	
 	else
 		--Couldn't connect, what to do?
 	end

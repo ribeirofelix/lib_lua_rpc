@@ -1,8 +1,4 @@
 local rpc = require "luarpc"
---[[
-p1 = createProxy("0.0.0.0", 50340, "interface1.lua")
-p2 = createProxy("0.0.0.0", 50341, "interface1.lua")
-]]
 
 function counsumeIpPort(interface)
 	
@@ -34,7 +30,6 @@ function counsumeIpPort(interface)
 		file:close()
 		return ip,port
 	end
-
 end
 
 ip , port = counsumeIpPort("interface1.lua")
@@ -49,22 +44,57 @@ ip , port = counsumeIpPort("interface2.lua")
 p3 = rpc.createProxy( ip, port , "interface2.lua")
 print("Proxy 3 created in host " .. ip .. " and port " .. port)
 
-print "Proxy 1 tests"
-print(p1.foo(3, 5))
-print(p1.foo(3))
-print(p1.foo())
-print(p1.foo(1, 2, 3))
 
-print "Proxy 2 tests"
-print(p2.foo(3, 5))
-print(p2.nonexistent(3, 5))
+describe("Proxy 1 tests", function()
 
-print "Proxy 3 tests"
-print(p3.foo(1, 2, 3))
-print(p3.bar())
-print(p3.boo("testing \\ rpc!"))
+  it("Ok expected tests" , function ()
+  	local x , y = p1.foo(3, 5)
+  	assert.True( type(x) == "number" and type(y) == "string")
+  	local x , y = p1.foo(1, 2, 3)
+  	assert.True(type(x) == "number" and type(y) == "string")
+  	
+  end)
 
-print "Proxy 1 tests"
-print(p1.bar("hello"))
-print(p1.bar(nil))
-print(p1.bar("string\n\"muito\"\ncomplicada!"))
+  it("Error expected tests" , function ()
+  	assert.True ( p1.foo(3)  == nil )
+  	assert.True ( p1.foo() == nil )
+  	assert.True ( p1.bar("hello") == nil )
+  	assert.True ( p1.bar(nil) == nil )
+  	assert.True ( p1.bar("string\n\"muito\"\ncomplicada!") == nil )
+  	
+  end)
+end)
+
+
+
+describe("Proxy 2 tests", function()
+  
+  it("Ok expected tests" , function ()
+  	local x , y = p2.foo(3, 5)
+  	assert.True( type(x) == "number" and type(y) == "string")
+  end)
+
+  it("Error expected tests" , function ()
+  	assert.True ( p2.nonexistent(3, 5)  == nil )
+  end)
+end)
+
+
+
+
+describe("Proxy 3 tests", function()
+  
+  it("Ok expected tests" , function ()
+  	local x , y = p3.foo(1, 2, 3)
+  	assert.True( type(x) == "number" and type(y) == "number")
+  	assert.True( p3.bar() == nil)
+  end)
+
+  it("Error expected tests" , function ()
+  	assert.True ( p2.nonexistent(3, 5)  == nil )
+  	assert.True ( p3.boo("testing \\ rpc!") == nil )
+  end)
+end)
+
+
+

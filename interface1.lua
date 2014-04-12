@@ -1,5 +1,4 @@
-local rpc = require "luarpc"
-rpc.interface { name = "minhaInt",
+interface { name = "minhaInt",
             methods = {
                foo = {
                  resulttype = "double",
