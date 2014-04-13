@@ -13,6 +13,7 @@ function counsumeIpPort(interface)
 				-- if the current line is the required interface
 				-- we'll consume the next line to get ip/port
 				ipportline = iteLines()
+				table.insert(linestbl,ipportline)
 				if ipportline then
 					local ipportmatch = string.gmatch( ipportline , "%S+" )
 					ip, port = ipportmatch() , ipportmatch()	
@@ -60,6 +61,7 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		setup(function ()
 			local  ip , port = counsumeIpPort("interface2.lua")
 			 p1 = rpc.createProxy( ip, port   , "interface2.lua")
+			 print( ip .. " " .. port )
 		end)
 
 		before_each(function() timeStart = os.clock()  end)
@@ -67,31 +69,31 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		after_each(function () print("Time :" .. (os.clock() - timeStart))	end)
 
 		
-		it("Measure correction" , function ()
+		-- it("Measure correction" , function ()
 
 
-			local x , y = p1.foo(1, 2, 3)
-			assert.True( type(x) == "number" and type(y) == "number")
+		-- 	local x , y = p1.foo(1, 2, 3)
+		-- 	assert.True( type(x) == "number" and type(y) == "number")
 			
-			assert.True( p1.bar() == nil)
+		-- 	assert.True( p1.bar() == nil)
 			
-			s = "testing \\ rpc!"
-			assert.True ( p1.boo(s) == s:len() )
+		-- 	s = "testing \\ rpc!"
+		-- 	assert.True ( p1.boo(s) == s:len() )
 
-			assert.True ( p1.nonexistent(3, 5)  == nil )
+		-- 	assert.True ( p1.nonexistent(3, 5)  == nil )
 
-			assert.True ( p1.foo("lol") == nil)
+		-- 	assert.True ( p1.foo("lol") == nil)
 		
-		end)
+		-- end)
 
-		it("1000 requests to foo", function  ()
+		it("1.000 requests to foo", function  ()
 			
 			for i=1,1000 do
 				p1.foo(3, 5, 4)
 			end
 		end)
 
-		it("10000 requests to foo", function  ()
+		it("10.000 requests to foo", function  ()
 			
 			for i=1,10000 do
 				p1.foo(3, 5 , 4)
@@ -99,14 +101,14 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		end)
 
 
-		it("100000 requests to foo", function  ()
+		it("100.000 requests to foo", function  ()
 			
 			for i=1,100000 do
 				p1.foo(3, 5 , 4)
 			end
 		end)
 
-		it("1000000 requests to foo", function  ()
+		it("1.000.000 requests to foo", function  ()
 			
 			for i=1,1000000 do
 				p1.foo(3, 5 , 4)

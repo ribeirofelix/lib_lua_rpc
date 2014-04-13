@@ -4,6 +4,7 @@ local Mod = {}
 Mod.lastInterface = nil
 Mod.errorPrefix = "___ERRORPC: "
 Mod.createdServants = {}
+Mod.socket = require "socket"
 
 -- Validates a table as an acceptable interface for this library, returns interface if it's ok or nil otherwise
 function Mod.ValidateInterface (interfaceObj)
@@ -213,13 +214,12 @@ function Mod.rpcCall (proxy, methodName, args)
 	end
 	local results = {}
 	--Create connection
-	local socket = require("socket")
-
+	
 	local connection = nil
 
 	-- Check if connection was created once:
 	if not proxy.isConnected then 
-		proxy.connection = assert(socket.connect(ip, port))
+		proxy.connection = assert(Mod.socket.connect(ip, port))
 		proxy.isConnected = true
 		--print("Created connection " .. ip .. ":" .. port)
 		proxy.connection:setoption("tcp-nodelay", true)
@@ -238,7 +238,7 @@ function Mod.rpcCall (proxy, methodName, args)
 						 end
 	
 		while not trySend() do
-			proxy.connection = assert(socket.connect(ip, port))
+			proxy.connection = assert(Mod.socket.connect(ip, port))
 			proxy.connection:setoption("tcp-nodelay", true)
 			connection = proxy.connection
 		end
@@ -417,16 +417,16 @@ function Mod.answerRequest (client, servant, set)
 			print "Couldn't send answer"
 		end
 		--print "--------"
-	else
-		set:remove(client)
-		local index = nil
-		for i, v in ipairs (activeConnections) do
-			if v == client then
-				index = i
-			end
-		end
-		table.remove(activeConnections, index)
-		print "Couldn\'t handle request"
+	-- else
+	-- 	set:remove(client)
+	-- 	local index = nil
+	-- 	for i, v in ipairs (activeConnections) do
+	-- 		if v == client then
+	-- 			index = i
+	-- 		end
+	-- 	end
+	-- 	table.remove(activeConnections, index)
+	-- 	print "Couldn\'t handle request"
 	end
 end
 
@@ -445,7 +445,7 @@ function Mod.activateConnection (connection, servant, set)
 			return connection
 		end
 	end
-	if #activeConnections==2 then
+	if #activeConnections==3 then
 		local removedConnection = table.remove(activeConnections, 1)
 		local ip, port = removedConnection:getsockname()
 		removedConnection:close()
@@ -467,9 +467,8 @@ function Mod.createServant (obj, interfaceFile)
 		-- TO DO: throw error
 		return nil
 	end
-	-- TODO : verify if require is slow
-	local socket = require("socket")
-	local server = assert(socket.bind("*", 0))
+	
+	local server = assert(Mod.socket.bind("*", 0))
 	server:setoption("tcp-nodelay", true)
 	local ip, port = server:getsockname()
 
@@ -526,9 +525,8 @@ function Mod.waitIncoming ()
 		set:insert(v.server)
 	end
 
-	local socket = require "socket"
 	while (true) do
-		local socketsToRead = socket.select(set, nil)
+		local socketsToRead = Mod.socket.select(set, nil)
 		for i, v in ipairs (socketsToRead) do
 			local ip, port = v:getsockname()
 			--print ("Heard from " .. ip .. ":" .. port)
