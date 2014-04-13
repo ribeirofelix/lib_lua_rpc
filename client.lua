@@ -76,9 +76,9 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		-- 	assert.True( type(x) == "number" and type(y) == "number")
 			
 		-- 	assert.True( p1.bar() == nil)
-			
-		-- 	s = "testing \\ rpc!"
-		-- 	assert.True ( p1.boo(s) == s:len() )
+
+		--s = "testing \\ rpc!"
+		--			assert.True ( p1.boo(s) == 1 )
 
 		-- 	assert.True ( p1.nonexistent(3, 5)  == nil )
 
