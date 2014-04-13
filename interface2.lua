@@ -13,8 +13,7 @@ interface { name = "testInterface",
                },
                bar = {
                  resulttype = "void",
-                 args = {
-                        }
+                 args = {}
                },
                boo = {
                  resulttype = "double",

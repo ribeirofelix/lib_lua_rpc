@@ -485,8 +485,9 @@ function Mod.createServant (obj, interfaceFile)
 end
 
 function Mod.createProxy (ip, port, interfaceFile)
+	
 	dofile(interfaceFile)
-
+	
 	local interfaceObj = Mod.lastInterface
 	if not interfaceObj then 
 		print ( Mod.errorPrefix .. "Interface \"".. interfaceFile .. "\" inválida!")
