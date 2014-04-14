@@ -436,12 +436,13 @@ function Mod.activateConnection (connection, servant, set)
 	if not activeConnections then
 		activeConnections = {}
 	end
-	--print (#activeConnections .. " Connected clients")
+	print (#activeConnections .. " Connected clients")
 	local cIp, cPort = connection:getsockname()
 	for _, v in ipairs (activeConnections) do
+		--print (v:getpeername())
 		local vIp, vPort = v:getsockname()
 		if cIp == vIp and cPort == vPort then
-			--print ("Cliente ainda conectado " .. vIp .. ":" .. vPort)
+			print ("Cliente ainda conectado " .. vIp .. ":" .. vPort)
 			return connection
 		end
 	end
@@ -449,12 +450,12 @@ function Mod.activateConnection (connection, servant, set)
 		local removedConnection = table.remove(activeConnections, 1)
 		local ip, port = removedConnection:getsockname()
 		removedConnection:close()
-		--print ("Cliente desconectado " .. ip .. ":" .. port)
+		print ("Cliente desconectado " .. ip .. ":" .. port)
 		set:remove(removedConnection)
 	end
 	local client = assert(servant.server:accept())
 	client:setoption("tcp-nodelay", true)
-	--print ("Cliente conectado " .. servant.ip .. ":" .. servant.port)
+	print ("Cliente conectado " .. servant.ip .. ":" .. servant.port)
 	set:insert(client)
 	table.insert(activeConnections, client)
 	return client
@@ -527,17 +528,20 @@ function Mod.waitIncoming ()
 
 	while (true) do
 		local socketsToRead = Mod.socket.select(set, nil)
+		print (#socketsToRead .. " sockets to read of " .. #set .. " sockets ")
 		for i, v in ipairs (socketsToRead) do
 			local ip, port = v:getsockname()
-			--print ("Heard from " .. ip .. ":" .. port)
-			local servant = Mod.searchServant (ip, port)
-			if not servant then
-				print ("No servant in " .. ip .. ":" .. port)
-				--set:remove(v)
-			else
-				local client = Mod.activateConnection(v, servant, set)
-				--local client = assert(servant.server:accept())
-				Mod.answerRequest(client, servant, set)
+			if ip and port then
+				print ("Heard from " .. ip .. ":" .. port)
+				local servant = Mod.searchServant (ip, port)
+				if not servant then
+					print ("No servant in " .. ip .. ":" .. port)
+					--set:remove(v)
+				else
+					local client = Mod.activateConnection(v, servant, set)
+					--local client = assert(servant.server:accept())
+					Mod.answerRequest(client, servant, set)
+				end
 			end
 	  	end	    
 	end
