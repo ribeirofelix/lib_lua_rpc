@@ -409,8 +409,7 @@ function Mod.createProxy (ip, port, interfaceFile)
 	proxy.port = port
 	proxy.ip = ip
 	proxy.mysocket = Mod.socket.tcp()
-	local connection = assert(proxy.mysocket:connect(proxy.ip, proxy.port))
-
+	
 	--metatable
 	local mt = {}
 	mt.__index = function (t, k)
