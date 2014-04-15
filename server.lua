@@ -1,4 +1,4 @@
-local rpc = require "luarpc"
+local rpc = require "luarpc2"
 
 function publishContact( serv , interface)
       local text = io.open("deploy", "r" ):read("*a")

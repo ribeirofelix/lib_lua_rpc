@@ -1,4 +1,4 @@
-rpc = require "luarpc"
+rpc = require "luarpc2"
 function counsumeIpPort(interface)
 	
 	local text = io.open("deploy", "r" ):read("*a")
@@ -35,23 +35,23 @@ end
 
 
 function serialize( o )
-			local srl 
-			if type(o) == "number" then
-				srl = o
-			elseif type(o) == "string" then
-				srl = string.format("%q",o)
-			elseif type(o) == "table" then
-				srl = "{\n"
-				for k,v in pairs(o) do
-					srl = srl ..  " [" .. k .. "] = "
-					srl = srl .. serialize(v)
-					srl = srl .. ",\n"
-				end
-				srl = srl .. "}\n"
-			else
-				error("Cannot serialize a" .. type(o))
-			end
-			return srl
+	local srl 
+	if type(o) == "number" then
+		srl = o
+	elseif type(o) == "string" then
+		srl = string.format("%q",o)
+	elseif type(o) == "table" then
+		srl = "{\n"
+		for k,v in pairs(o) do
+			srl = srl ..  " [" .. k .. "] = "
+			srl = srl .. serialize(v)
+			srl = srl .. ",\n"
+		end
+		srl = srl .. "}\n"
+	else
+		error("Cannot serialize a" .. type(o))
+	end
+	return srl
 end
 
 describe("Calling foo, bar , boo. To measure correction and performace #fbb ", function()
@@ -89,14 +89,16 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		it("1.000 requests to foo", function  ()
 			
 			for i=1,1000 do
-				p1.foo(3, 5, 4)
+				local a , b = p1.foo(3, 5, 4)
+				assert.True(a == 8 and b == 1)
 			end
 		end)
 
 		it("10.000 requests to foo", function  ()
 			
 			for i=1,10000 do
-				p1.foo(3, 5 , 4)
+				local a , b = p1.foo(3, 5, 4)
+				assert.True(a == 8 and b == 1)
 			end
 		end)
 
@@ -104,14 +106,16 @@ describe("Calling foo, bar , boo. To measure correction and performace #fbb ", f
 		it("100.000 requests to foo", function  ()
 			
 			for i=1,100000 do
-				p1.foo(3, 5 , 4)
+				local a , b = p1.foo(3, 5, 4)
+				assert.True(a == 8 and b == 1)
 			end
 		end)
 
 		it("1.000.000 requests to foo", function  ()
 			
 			for i=1,1000000 do
-				p1.foo(3, 5 , 4)
+				local a , b = p1.foo(3, 5, 4)
+				assert.True(a == 8 and b == 1)
 			end
 		end)
 end)
@@ -135,12 +139,14 @@ describe("Calling boo 10000 times with different lengths of strings #strsboo ", 
 		it("1 byte string ", function ()
 			
 			for i=1,10000 do
+				print("byte",p1.boo("t"))
 				assert.True( p1.boo("t") == 1 )
 			end		
 		end)
 
 		it("1MB string", function ()
 			for i=1,10000 do
+				print("mb",p1.boo(strmb))
 				assert.True( p1.boo(strmb) == 1 )
 			end		
 		
