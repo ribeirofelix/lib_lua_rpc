@@ -214,6 +214,7 @@ end
 -- Actually makes rpc call
 function Mod.rpcCall (proxy, methodName, interface, args)
 	-- Verify Arguments
+	print "Calling rpc"
 	local argsOk = Mod.VerifyData(methodName, interface, args, "in")
 	if not argsOk then
 		print ( Mod.errorPrefix .. "Tentativa de chamar " .. methodName .. " com argumentos inválidos.\n" )
@@ -223,7 +224,8 @@ function Mod.rpcCall (proxy, methodName, interface, args)
 	--Create connection
 
 	--print('connect in:' .. ip .. " " .. port)
-	--local connection = assert(proxy.mysocket:connect(proxy.ip, proxy.port))
+	proxy.mysocket = Mod.socket.tcp()
+	assert(proxy.mysocket:connect(proxy.ip, proxy.port))
 
 	if proxy.mysocket:getpeername() then
 		--Serialize message
@@ -236,16 +238,18 @@ function Mod.rpcCall (proxy, methodName, interface, args)
 		if not bytes then
 			print ("Error: " .. error)
 		else
+			print "Sent message"
 			--Receive message
 			local resultsStrings = Mod.retrieveDataStrings(proxy.mysocket, methodName, interface, "out")
 			if resultsStrings then
+				print "Got answer"
 				results = Mod.retrieveData(resultsStrings, methodName, interface, "out") 
 			else
 
 			end
 		end
 		--Close connection
-		--proxy.mysocket:close()
+		proxy.mysocket:close()
 	else
 		--goto conn 
 		--Couldn't connect, what to do?
