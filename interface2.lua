@@ -1,4 +1,4 @@
-interface { name = "minhaInt",
+interface { name = "testInterface",
             methods = {
                foo = {
                  resulttype = "double",
@@ -6,19 +6,17 @@ interface { name = "minhaInt",
                           type = "double"},
                          {direction = "in",
                           type = "double"},
-                         {direction = "out",
-                          type = "string"},
+                         {direction = "inout",
+                          type = "double"},
                         }
 
                },
-               boo = {
+               bar = {
                  resulttype = "void",
-                 args = {{ direction = "inout",
-                          type = "double"},
-                        }
+                 args = {}
                },
-                bar = {
-                 resulttype = "void",
+               boo = {
+                 resulttype = "double",
                  args = {{ direction = "in",
                           type = "string"},
                         }
